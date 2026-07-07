@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>名言タイピング</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<style>
+  body {
+    background-color: #ede4d3;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(120,100,70,0.05) 0%, transparent 45%),
+      radial-gradient(circle at 80% 70%, rgba(120,100,70,0.05) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, rgba(90,70,40,0.04) 0%, transparent 60%);
+    font-family: 'Courier Prime', 'Special Elite', monospace;
+  }
+  .typewriter-font {
+    font-family: 'Special Elite', 'Courier Prime', monospace;
+  }
+  .paper-card {
+    background-color: #f4ecd8;
+    box-shadow:
+      0 1px 2px rgba(60,45,25,0.15),
+      0 8px 24px rgba(60,45,25,0.12),
+      inset 0 0 60px rgba(120,90,50,0.06);
+    border: 1px solid #d9cba8;
+  }
+  .ink-stain {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(60,45,20,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .retro-btn {
+    font-family: 'Special Elite', monospace;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+  }
+  .char-current {
+    background-color: #3a2f1e;
+    color: #f4ecd8;
+    border-radius: 2px;
+  }
+  .char-current-wrong {
+    background-color: #a13d2e;
+    color: #f4ecd8;
+    border-radius: 2px;
+  }
+  .char-correct {
+    color: #2e5c3e;
+    font-weight: 700;
+  }
+  .char-pending {
+    color: #a89a78;
+  }
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const QUOTES_EN = [
+  "The only way to do great work is to love what you do.",
+  "In the middle of difficulty lies opportunity.",
+  "Simplicity is the ultimate sophistication.",
+  "The unexamined life is not worth living.",
+  "Whatever you are, be a good one.",
+  "It does not matter how slowly you go as long as you do not stop.",
+  "Fall seven times, stand up eight.",
+  "A journey of a thousand miles begins with a single step.",
+  "Knowing yourself is the beginning of all wisdom.",
+  "The best time to plant a tree was twenty years ago. The second best time is now.",
+  "Do not go where the path may lead, go instead where there is no path and leave a trail.",
+  "Yesterday is history, tomorrow is a mystery, today is a gift.",
+  "The only limit to our realization of tomorrow is our doubts of today.",
+  "Success is not final, failure is not fatal, it is the courage to continue that counts.",
+  "Life is what happens when you are busy making other plans.",
+  "The way to get started is to quit talking and begin doing.",
+  "Your time is limited, so do not waste it living someone else's life.",
+  "If life were predictable it would cease to be life, and be without flavor.",
+  "The purpose of our lives is to be happy.",
+  "Get busy living, or get busy dying.",
+  "You only live once, but if you do it right, once is enough.",
+  "Many of life's failures are people who did not realize how close they were to success when they gave up.",
+  "If you want to lift yourself up, lift up someone else.",
+  "The mind is everything. What you think you become.",
+  "Strive not to be a success, but rather to be of value.",
+  "Two roads diverged in a wood, and I took the one less traveled by.",
+  "I attribute my success to this: I never gave or took any excuse.",
+  "You miss one hundred percent of the shots you do not take.",
+  "The future belongs to those who believe in the beauty of their dreams.",
+  "It is during our darkest moments that we must focus to see the light.",
+  "Whether you think you can or you think you cannot, you are right.",
+  "The only impossible journey is the one you never begin.",
+  "In this life we cannot do great things. We can only do small things with great love.",
+  "Nothing is impossible, the word itself says I'm possible.",
+  "What lies behind us and what lies before us are tiny matters compared to what lies within us.",
+  "Keep your face always toward the sunshine, and shadows will fall behind you.",
+  "Believe you can and you're halfway there.",
+  "A little progress each day adds up to big results.",
+  "Do not wait to strike till the iron is hot, but make it hot by striking.",
+  "The best preparation for tomorrow is doing your best today.",
+  "Turn your wounds into wisdom.",
+  "You are never too old to set another goal or to dream a new dream.",
+  "Once you learn to quit, it becomes a habit.",
+  "Change your thoughts and you change your world.",
+  "Not all those who wander are lost.",
+  "Actions speak louder than words.",
+  "Practice makes perfect.",
+  "Time heals all wounds.",
+  "Honesty is the best policy.",
+  "Better late than never.",
+  "Every cloud has a silver lining.",
+  "No pain, no gain.",
+  "Where there's a will, there's a way.",
+  "The pen is mightier than the sword.",
+  "When in Rome, do as the Romans do.",
+  "All that glitters is not gold.",
+  "A picture is worth a thousand words.",
+  "Beggars can't be choosers.",
+  "Birds of a feather flock together.",
+  "Don't judge a book by its cover.",
+  "Easy come, easy go.",
+  "Great minds think alike.",
+  "Laughter is the best medicine.",
+  "Look before you leap.",
+  "Necessity is the mother of invention.",
+  "Out of sight, out of mind.",
+  "Practice what you preach.",
+  "The early bird catches the worm.",
+  "The grass is always greener on the other side.",
+  "Two wrongs don't make a right.",
+  "A friend in need is a friend indeed.",
+  "Actions have consequences.",
+  "Better safe than sorry.",
+  "Curiosity killed the cat.",
+  "Every dog has its day.",
+  "Fortune favors the bold.",
+  "Haste makes waste.",
+  "Ignorance is bliss.",
+  "Knowledge is power.",
+  "The greatest glory in living lies not in never falling, but in rising every time we fall.",
+  "It is never too late to be what you might have been.",
+  "In three words I can sum up everything I've learned about life: it goes on.",
+  "The best revenge is massive success.",
+  "Do not judge me by my success, judge me by how many times I fell down and got back up again.",
+  "The only person you are destined to become is the person you decide to be.",
+  "Everything you've ever wanted is on the other side of fear.",
+  "It always seems impossible until it's done.",
+  "Start where you are, use what you have, do what you can.",
+  "The road to success and the road to failure are almost exactly the same.",
+  "You are braver than you believe, stronger than you seem, and smarter than you think.",
+  "Perfection is not attainable, but if we chase perfection we can catch excellence.",
+  "Success usually comes to those who are too busy to be looking for it.",
+  "There is no substitute for hard work.",
+  "You must expect great things of yourself before you can do them.",
+  "Setting goals is the first step in turning the invisible into the visible.",
+  "What we think, we become.",
+  "Happiness is not something ready made, it comes from your own actions.",
+  "Dreams do not work unless you do.",
+  "Small deeds done are better than great deeds planned.",
+  "The journey of a thousand miles begins with one step, and every step counts.",
+  "We are what we repeatedly do, excellence then is not an act but a habit.",
+  "The struggle you are in today is developing the strength you need for tomorrow.",
+  "Continuous effort, not strength or intelligence, is the key to unlocking our potential.",
+  "Great things are done by a series of small things brought together.",
+  "You do not have to be great to start, but you have to start to be great.",
+  "The difference between ordinary and extraordinary is that little extra.",
+  "It is not the mountain we conquer but ourselves.",
+  "Patience is not simply the ability to wait, it is how we behave while we are waiting.",
+  "Do what you can, with what you have, where you are.",
+  "Difficult roads often lead to beautiful destinations.",
+  "The best way to predict the future is to create it.",
+  "Wherever you go, go with all your heart.",
+  "There is only one thing that makes a dream impossible to achieve: the fear of failure.",
+  "Every strike brings me closer to the next home run.",
+];
+
+const QUOTES_JA = [
+  { text: "石の上にも三年", reading: "いしのうえにもさんねん" },
+  { text: "七転び八起き", reading: "ななころびやおき" },
+  { text: "急がば回れ", reading: "いそがばまわれ" },
+  { text: "塵も積もれば山となる", reading: "ちりもつもればやまとなる" },
+  { text: "光陰矢の如し", reading: "こういんやのごとし" },
+  { text: "継続は力なり", reading: "けいぞくはちからなり" },
+  { text: "初心忘るべからず", reading: "しょしんわするべからず" },
+  { text: "案ずるより産むが易し", reading: "あんずるよりうむがやすし" },
+  { text: "井の中の蛙大海を知らず", reading: "いのなかのかわずたいかいをしらず" },
+  { text: "猿も木から落ちる", reading: "さるもきからおちる" },
+  { text: "花より団子", reading: "はなよりだんご" },
+  { text: "転ばぬ先の杖", reading: "ころばぬさきのつえ" },
+  { text: "石橋を叩いて渡る", reading: "いしばしをたたいてわたる" },
+  { text: "千里の道も一歩から", reading: "せんりのみちもいっぽから" },
+  { text: "三人寄れば文殊の知恵", reading: "さんにんよればもんじゅのちえ" },
+  { text: "早起きは三文の徳", reading: "はやおきはさんもんのとく" },
+  { text: "灯台下暗し", reading: "とうだいもとくらし" },
+  { text: "二兎を追う者は一兎をも得ず", reading: "にとをおうものはいっとをもえず" },
+  { text: "好きこそものの上手なれ", reading: "すきこそもののじょうずなれ" },
+  { text: "温故知新", reading: "おんこちしん" },
+  { text: "一期一会", reading: "いちごいちえ" },
+  { text: "有言実行", reading: "ゆうげんじっこう" },
+  { text: "一石二鳥", reading: "いっせきにちょう" },
+  { text: "十人十色", reading: "じゅうにんといろ" },
+  { text: "因果応報", reading: "いんがおうほう" },
+  { text: "臨機応変", reading: "りんきおうへん" },
+  { text: "起死回生", reading: "きしかいせい" },
+  { text: "大器晩成", reading: "たいきばんせい" },
+  { text: "千載一遇", reading: "せんざいいちぐう" },
+  { text: "明日は明日の風が吹く", reading: "あしたはあしたのかぜがふく" },
+  { text: "雨降って地固まる", reading: "あめふってじかたまる" },
+  { text: "楽あれば苦あり", reading: "らくあればくあり" },
+  { text: "実るほど頭を垂れる稲穂かな", reading: "みのるほどこうべをたれるいなほかな" },
+  { text: "縁の下の力持ち", reading: "えんのしたのちからもち" },
+  { text: "蒔かぬ種は生えぬ", reading: "まかぬたねははえぬ" },
+  { text: "為せば成る", reading: "なせばなる" },
+  { text: "良薬は口に苦し", reading: "りょうやくはくちににがし" },
+  { text: "百聞は一見に如かず", reading: "ひゃくぶんはいっけんにしかず" },
+  { text: "塞翁が馬", reading: "さいおうがうま" },
+  { text: "覆水盆に返らず", reading: "ふくすいぼんにかえらず" },
+  { text: "単刀直入", reading: "たんとうちょくにゅう" },
+  { text: "我田引水", reading: "がでんいんすい" },
+  { text: "一朝一夕", reading: "いっちょういっせき" },
+  { text: "五里霧中", reading: "ごりむちゅう" },
+  { text: "電光石火", reading: "でんこうせっか" },
+  { text: "針小棒大", reading: "しんしょうぼうだい" },
+  { text: "温厚篤実", reading: "おんこうとくじつ" },
+  { text: "首尾一貫", reading: "しゅびいっかん" },
+  { text: "明鏡止水", reading: "めいきょうしすい" },
+  { text: "諸行無常", reading: "しょぎょうむじょう" },
+  { text: "自業自得", reading: "じごうじとく" },
+  { text: "一喜一憂", reading: "いっきいちゆう" },
+  { text: "疑心暗鬼", reading: "ぎしんあんき" },
+  { text: "我武者羅", reading: "がむしゃら" },
+  { text: "順風満帆", reading: "じゅんぷうまんぱん" },
+  { text: "大同小異", reading: "だいどうしょうい" },
+  { text: "適材適所", reading: "てきざいてきしょ" },
+  { text: "切磋琢磨", reading: "せっさたくま" },
+  { text: "用意周到", reading: "よういしゅうとう" },
+  { text: "一長一短", reading: "いっちょういったん" },
+  { text: "半信半疑", reading: "はんしんはんぎ" },
+  { text: "器用貧乏", reading: "きようびんぼう" },
+  { text: "有名無実", reading: "ゆうめいむじつ" },
+  { text: "前代未聞", reading: "ぜんだいみもん" },
+  { text: "泰然自若", reading: "たいぜんじじゃく" },
+  { text: "波乱万丈", reading: "はらんばんじょう" },
+  { text: "一網打尽", reading: "いちもうだじん" },
+  { text: "意気投合", reading: "いきとうごう" },
+  { text: "言語道断", reading: "ごんごどうだん" },
+  { text: "天真爛漫", reading: "てんしんらんまん" },
+  { text: "独立独歩", reading: "どくりつどっぽ" },
+  { text: "質実剛健", reading: "しつじつごうけん" },
+  { text: "抱腹絶倒", reading: "ほうふくぜっとう" },
+  { text: "空前絶後", reading: "くうぜんぜつご" },
+  { text: "巧言令色", reading: "こうげんれいしょく" },
+  { text: "猫に小判", reading: "ねこにこばん" },
+  { text: "馬の耳に念仏", reading: "うまのみみにねんぶつ" },
+  { text: "蛇の道は蛇", reading: "じゃのみちはへび" },
+  { text: "木を見て森を見ず", reading: "きをみてもりをみず" },
+  { text: "三日坊主", reading: "みっかぼうず" },
+  { text: "二階から目薬", reading: "にかいからめぐすり" },
+  { text: "河童の川流れ", reading: "かっぱのかわながれ" },
+  { text: "泣き面に蜂", reading: "なきつらにはち" },
+  { text: "棚からぼた餅", reading: "たなからぼたもち" },
+  { text: "虎の威を借る狐", reading: "とらのいをかるきつね" },
+  { text: "蛙の面に水", reading: "かえるのつらにみず" },
+  { text: "立つ鳥跡を濁さず", reading: "たつとりあとをにごさず" },
+  { text: "出る杭は打たれる", reading: "でるくいはうたれる" },
+  { text: "亀の甲より年の功", reading: "かめのこうよりとしのこう" },
+  { text: "触らぬ神に祟りなし", reading: "さわらぬかみにたたりなし" },
+  { text: "医者の不養生", reading: "いしゃのふようじょう" },
+  { text: "犬も歩けば棒に当たる", reading: "いぬもあるけばぼうにあたる" },
+  { text: "骨折り損のくたびれ儲け", reading: "ほねおりぞんのくたびれもうけ" },
+  { text: "隣の芝生は青い", reading: "となりのしばふはあおい" },
+  { text: "木で鼻をくくる", reading: "きではなをくくる" },
+  { text: "提灯に釣鐘", reading: "ちょうちんにつりがね" },
+  { text: "天は自ら助くる者を助く", reading: "てんはみずからたすくるものをたすく" },
+  { text: "柳の下にいつも泥鰌はいない", reading: "やなぎのしたにいつもどじょうはいない" },
+  { text: "苦しい時の神頼み", reading: "くるしいときのかみだのみ" },
+  { text: "論語読みの論語知らず", reading: "ろんごよみのろんごしらず" },
+  { text: "好機逸すべからず", reading: "こうきいっすべからず" },
+  { text: "一寸先は闇", reading: "いっすんさきはやみ" },
+  { text: "蟻の穴から堤も崩れる", reading: "ありのあなからつつみもくずれる" },
+  { text: "天に唾する", reading: "てんにつばする" },
+  { text: "泥棒を捕らえて縄を綯う", reading: "どろぼうをとらえてなわをなう" },
+  { text: "火のない所に煙は立たぬ", reading: "ひのないところにけむりはたたぬ" },
+  { text: "悪銭身に付かず", reading: "あくせんみにつかず" },
+  { text: "才能は継続に勝てない", reading: "さいのうはけいぞくにかてない" },
+  { text: "努力は必ず報われる", reading: "どりょくはかならずむくわれる" },
+  { text: "笑う門には福来る", reading: "わらうかどにはふくきたる" },
+  { text: "郷に入っては郷に従え", reading: "ごうにいってはごうにしたがえ" },
+  { text: "弘法にも筆の誤り", reading: "こうぼうにもふでのあやまり" },
+  { text: "蛙の子は蛙", reading: "かえるのこはかえる" },
+  { text: "情けは人の為ならず", reading: "なさけはひとのためならず" },
+  { text: "論より証拠", reading: "ろんよりしょうこ" },
+  { text: "蓼食う虫も好き好き", reading: "たでくうむしもすきずき" },
+  { text: "猫の手も借りたい", reading: "ねこのてもかりたい" },
+  { text: "猫に鰹節", reading: "ねこにかつおぶし" },
+  { text: "犬猿の仲", reading: "けんえんのなか" },
+  { text: "馬子にも衣装", reading: "まごにもいしょう" },
+  { text: "舌の根の乾かぬうち", reading: "したのねのかわかぬうち" },
+  { text: "口は災いの元", reading: "くちはわざわいのもと" },
+  { text: "三度目の正直", reading: "さんどめのしょうじき" },
+  { text: "二度あることは三度ある", reading: "にどあることはさんどある" },
+  { text: "待てば海路の日和あり", reading: "まてばかいろのひよりあり" },
+  { text: "明日の百より今日の五十", reading: "あすのひゃくよりきょうのごじゅう" },
+  { text: "急いては事を仕損じる", reading: "せいてはことをしそんじる" },
+  { text: "悪事千里を走る", reading: "あくじせんりをはしる" },
+  { text: "虎穴に入らずんば虎子を得ず", reading: "こけつにいらずんばこじをえず" },
+  { text: "短気は損気", reading: "たんきはそんき" },
+  { text: "時は金なり", reading: "ときはかねなり" },
+  { text: "花に嵐", reading: "はなにあらし" },
+  { text: "憎まれっ子世にはばかる", reading: "にくまれっこよにはばかる" },
+  { text: "女心と秋の空", reading: "おんなごころとあきのそら" },
+  { text: "蛇に見込まれた蛙", reading: "へびにみこまれたかえる" },
+  { text: "鬼に金棒", reading: "おににかなぼう" },
+  { text: "猫をかぶる", reading: "ねこをかぶる" },
+  { text: "豚に真珠", reading: "ぶたにしんじゅ" },
+  { text: "濡れ手で粟", reading: "ぬれてであわ" },
+  { text: "弱り目に祟り目", reading: "よわりめにたたりめ" },
+  { text: "一寸の虫にも五分の魂", reading: "いっすんのむしにもごぶのたましい" },
+  { text: "転んでもただでは起きない", reading: "ころんでもただではおきない" },
+  { text: "火中の栗を拾う", reading: "かちゅうのくりをひろう" },
+  { text: "猫の額", reading: "ねこのひたい" },
+  { text: "雀の涙", reading: "すずめのなみだ" },
+  { text: "蟻の一穴", reading: "ありのいっけつ" },
+  { text: "隣の花は赤い", reading: "となりのはなはあかい" },
+  { text: "一を聞いて十を知る", reading: "いちをきいてじゅうをしる" },
+  { text: "秋茄子は嫁に食わすな", reading: "あきなすはよめにくわすな" },
+  { text: "焼け石に水", reading: "やけいしにみず" },
+  { text: "情けが仇", reading: "なさけがあだ" },
+  { text: "縁は異なもの味なもの", reading: "えんはいなものあじなもの" },
+  { text: "苦は楽の種", reading: "くはらくのたね" },
+  { text: "楽は苦の種", reading: "らくはくのたね" },
+  { text: "出物腫れ物所嫌わず", reading: "でものはれものところきらわず" },
+  { text: "花は桜木人は武士", reading: "はなはさくらぎひとはぶし" },
+  { text: "身から出た錆", reading: "みからでたさび" },
+  { text: "目から鱗が落ちる", reading: "めからうろこがおちる" },
+  { text: "藪から棒", reading: "やぶからぼう" },
+  { text: "我が身をつねって人の痛さを知れ", reading: "わがみをつねってひとのいたさをしれ" },
+  { text: "頭隠して尻隠さず", reading: "あたまかくしてしりかくさず" },
+  { text: "泥棒にも三分の理", reading: "どろぼうにもさんぶのり" },
+  { text: "好きな道には辛労なし", reading: "すきなみちにはしんろうなし" },
+  { text: "一難去ってまた一難", reading: "いちなんさってまたいちなん" },
+  { text: "大は小を兼ねる", reading: "だいはしょうをかねる" },
+  { text: "老いては子に従え", reading: "おいてはこにしたがえ" },
+  { text: "門前の小僧習わぬ経を読む", reading: "もんぜんのこぞうならわぬきょうをよむ" },
+  { text: "名は体を表す", reading: "なはたいをあらわす" },
+  { text: "灯火親しむべし", reading: "とうかしたしむべし" },
+  { text: "三つ子の魂百まで", reading: "みつごのたましいひゃくまで" },
+  { text: "夢を諦めない限り、夢は叶う", reading: "ゆめをあきらめないかぎりゆめはかなう" },
+  { text: "努力に勝る天才はない", reading: "どりょくにまさるてんさいはない" },
+  { text: "今日という日は二度と来ない", reading: "きょうというひはにどとこない" },
+  { text: "失敗は成功のもと", reading: "しっぱいはせいこうのもと" },
+  { text: "挑戦しなければ何も始まらない", reading: "ちょうせんしなければなにもはじまらない" },
+  { text: "人生は自分が思うほど短くない", reading: "じんせいはじぶんがおもうほどみじかくない" },
+  { text: "小さな一歩が大きな未来を作る", reading: "ちいさないっぽがおおきなみらいをつくる" },
+  { text: "変わる勇気を持て", reading: "かわるゆうきをもて" },
+  { text: "昨日の自分を超えていけ", reading: "きのうのじぶんをこえていけ" },
+  { text: "心が変われば行動が変わる", reading: "こころがかわればこうどうがかわる" },
+  { text: "できると信じれば道は開ける", reading: "できるとしんじればみちはひらける" },
+  { text: "一歩ずつでも前へ進め", reading: "いっぽずつでもまえへすすめ" },
+  { text: "才能より継続が大事だ", reading: "さいのうよりけいぞくがだいじだ" },
+  { text: "苦しみの先に成長がある", reading: "くるしみのさきにせいちょうがある" },
+  { text: "準備が成功の半分を決める", reading: "じゅんびがせいこうのはんぶんをきめる" },
+  { text: "感謝の心が幸せを呼ぶ", reading: "かんしゃのこころがしあわせをよぶ" },
+  { text: "笑顔は最高の武器だ", reading: "えがおはさいこうのぶきだ" },
+  { text: "時間は誰にでも平等に流れる", reading: "じかんはだれにでもびょうどうにながれる" },
+  { text: "本気になれば奇跡は起こる", reading: "ほんきになればきせきはおこる" },
+  { text: "迷ったら前に進め", reading: "まよったらまえにすすめ" },
+  { text: "過去は変えられないが未来は変えられる", reading: "かこはかえられないがみらいはかえられる" },
+  { text: "諦めた瞬間に終わりが来る", reading: "あきらめたしゅんかんにおわりがくる" },
+  { text: "一日一日を大切に生きよ", reading: "いちにちいちにちをたいせつにいきよ" },
+  { text: "己を知る者は強い", reading: "おのれをしるものはつよい" },
+  { text: "心の中に太陽を持て", reading: "こころのなかにたいようをもて" },
+  { text: "挑戦する者だけが成長できる", reading: "ちょうせんするものだけがせいちょうできる" },
+  { text: "逆境は人を強くする", reading: "ぎゃっきょうはひとをつよくする" },
+  { text: "夢は逃げない、逃げるのはいつも自分だ", reading: "ゆめはにげないにげるのはいつもじぶんだ" },
+  { text: "明日を変えるのは今日の行動だ", reading: "あすをかえるのはきょうのこうどうだ" },
+  { text: "続けることが才能になる", reading: "つづけることがさいのうになる" },
+  { text: "何事も最初の一歩が難しい", reading: "なにごともさいしょのいっぽがむずかしい" },
+  { text: "自分を信じる者だけが道を切り開く", reading: "じぶんをしんじるものだけがみちをきりひらく" },
+  { text: "失敗を恐れるな、挑戦しないことを恐れよ", reading: "しっぱいをおそれるなちょうせんしないことをおそれよ" },
+  { text: "幸せは日常の中にある", reading: "しあわせはにちじょうのなかにある" },
+  { text: "学ぶことに遅すぎることはない", reading: "まなぶことにおそすぎることはない" },
+  { text: "心が折れなければ道は続く", reading: "こころがおれなければみちはつづく" },
+  { text: "大きな夢は小さな行動から生まれる", reading: "おおきなゆめはちいさなこうどうからうまれる" },
+  { text: "人は変われる、いつからでも", reading: "ひとはかわれるいつからでも" },
+  { text: "目標がある人生は輝く", reading: "もくひょうがあるじんせいはかがやく" },
+  { text: "一番の敵は自分自身だ", reading: "いちばんのてきはじぶんじしんだ" },
+  { text: "継続は自信を生む", reading: "けいぞくはじしんをうむ" },
+  { text: "苦労を知る人ほど優しくなれる", reading: "くろうをしるひとほどやさしくなれる" },
+  { text: "未来は今この瞬間から始まる", reading: "みらいはいまこのしゅんかんからはじまる" },
+  { text: "迷いは行動で消える", reading: "まよいはこうどうできえる" },
+  { text: "人生に無駄な経験はない", reading: "じんせいにむだなけいけんはない" },
+  { text: "強さとは何度倒れても立ち上がることだ", reading: "つよさとはなんどたおれてもたちあがることだ" },
+  { text: "勇気とは恐れないことではなく、恐れても進むことだ", reading: "ゆうきとはおそれないことではなくおそれてもすすむことだ" },
+  { text: "変化を恐れる者に進歩はない", reading: "へんかをおそれるものにしんぽはない" },
+  { text: "情熱は困難を乗り越える力になる", reading: "じょうねつはこんなんをのりこえるちからになる" },
+  { text: "どんな暗闇にも必ず夜明けが来る", reading: "どんなくらやみにもかならずよあけがくる" },
+  { text: "小さな親切が世界を変える", reading: "ちいさなしんせつがせかいをかえる" },
+  { text: "感謝を忘れた時、成長も止まる", reading: "かんしゃをわすれたときせいちょうもとまる" },
+  { text: "本当の強さは優しさから生まれる", reading: "ほんとうのつよさはやさしさからうまれる" },
+  { text: "自分の限界を決めるのは自分だけだ", reading: "じぶんのげんかいをきめるのはじぶんだけだ" },
+  { text: "努力する姿はそれだけで美しい", reading: "どりょくするすがたはそれだけでうつくしい" },
+  { text: "今できることに全力を尽くせ", reading: "いまできることにぜんりょくをつくせ" },
+  { text: "挑戦した者だけが後悔しない", reading: "ちょうせんしたものだけがこうかいしない" },
+  { text: "心の豊かさは持ち物では測れない", reading: "こころのゆたかさはもちものでははかれない" },
+  { text: "過去に縛られず未来を見つめよ", reading: "かこにしばられずみらいをみつめよ" },
+  { text: "人との出会いが人生を変える", reading: "ひととのであいがじんせいをかえる" },
+  { text: "一つの言葉が誰かを救うことがある", reading: "ひとつのことばがだれかをすくうことがある" },
+  { text: "努力は自分自身への最高の投資だ", reading: "どりょくはじぶんじしんへのさいこうのとうしだ" },
+  { text: "弱さを認めることも強さの一つだ", reading: "よわさをみとめることもつよさのひとつだ" },
+  { text: "目の前のことに集中せよ", reading: "めのまえのことにしゅうちゅうせよ" },
+  { text: "成功への道に近道はない", reading: "せいこうへのみちにちかみちはない" },
+  { text: "何度失敗しても立ち上がればいい", reading: "なんどしっぱいしてもたちあがればいい" },
+  { text: "心配するより行動せよ", reading: "しんぱいするよりこうどうせよ" },
+  { text: "人生は挑戦の連続だ", reading: "じんせいはちょうせんのれんぞくだ" },
+  { text: "自分の歩幅で進めばいい", reading: "じぶんのほはばですすめばいい" },
+  { text: "諦めなければ必ず道は見つかる", reading: "あきらめなければかならずみちはみつかる" },
+  { text: "積み重ねた努力は裏切らない", reading: "つみかさねたどりょくはうらぎらない" },
+  { text: "心に余裕を持てば景色が変わる", reading: "こころによゆうをもてばけしきがかわる" },
+  { text: "できないと思った時点で可能性は消える", reading: "できないとおもったじてんでかのうせいはきえる" },
+  { text: "一日の終わりに感謝を数えよ", reading: "いちにちのおわりにかんしゃをかぞえよ" },
+  { text: "迷った時こそ初心に戻れ", reading: "まよったときこそしょしんにもどれ" },
+  { text: "自分を変えれば世界も変わる", reading: "じぶんをかえればせかいもかわる" },
+  { text: "失った時間は二度と戻らない", reading: "うしなったじかんはにどともどらない" },
+  { text: "挑む心を忘れるな", reading: "いどむこころをわすれるな" },
+  { text: "幸福は求めるものではなく気づくものだ", reading: "こうふくはもとめるものではなくきづくものだ" },
+  { text: "一生懸命な姿は人の心を動かす", reading: "いっしょうけんめいなすがたはひとのこころをうごかす" },
+  { text: "涙の数だけ人は強くなれる", reading: "なみだのかずだけひとはつよくなれる" },
+  { text: "誰かのために生きる人は美しい", reading: "だれかのためにいきるひとはうつくしい" },
+  { text: "心の傷も時が癒してくれる", reading: "こころのきずもときがいやしてくれる" },
+  { text: "大切なものほど失って気づく", reading: "たいせつなものほどうしなってきづく" },
+  { text: "続けた者だけが景色を変えられる", reading: "つづけたものだけがけしきをかえられる" },
+  { text: "苦しい時こそ笑ってみよう", reading: "くるしいときこそわらってみよう" },
+  { text: "できることから始めよう", reading: "できることからはじめよう" },
+  { text: "全力を出し切った者に後悔はない", reading: "ぜんりょくをだしきったものにこうかいはない" },
+  { text: "人生には終わりのない挑戦がある", reading: "じんせいにはおわりのないちょうせんがある" },
+  { text: "信じる心が奇跡を生む", reading: "しんじるこころがきせきをうむ" },
+  { text: "花は咲く時を選ばない", reading: "はなはさくときをえらばない" },
+  { text: "人は誰でも輝く場所を持っている", reading: "ひとはだれでもかがやくばしょをもっている" },
+  { text: "明るい未来は自分の手で作るものだ", reading: "あかるいみらいはじぶんのてでつくるものだ" },
+  { text: "頑張る君を誰かが見ている", reading: "がんばるきみをだれかがみている" },
+  { text: "種をまかなければ花は咲かない", reading: "たねをまかなければはなはさかない" },
+  { text: "静かな努力が大きな結果を生む", reading: "しずかなどりょくがおおきなけっかをうむ" },
+  { text: "心の声に耳を傾けよ", reading: "こころのこえにみみをかたむけよ" },
+  { text: "自分の道は自分で切り開け", reading: "じぶんのみちはじぶんできりひらけ" },
+  { text: "一歩踏み出す勇気が未来を変える", reading: "いっぽふみだすゆうきがみらいをかえる" },
+  { text: "過ちを認める強さを持て", reading: "あやまちをみとめるつよさをもて" },
+  { text: "人生は選択の積み重ねだ", reading: "じんせいはせんたくのつみかさねだ" },
+  { text: "弱音を吐いてもいい、諦めなければ", reading: "よわねをはいてもいいあきらめなければ" },
+  { text: "努力する君はもう十分立派だ", reading: "どりょくするきみはもうじゅうぶんりっぱだ" },
+  { text: "昨日より今日、今日より明日", reading: "きのうよりきょうきょうよりあす" },
+  { text: "目標を紙に書けば夢は近づく", reading: "もくひょうをかみにかけばゆめはちかづく" },
+  { text: "挫折は成長の一部だ", reading: "ざせつはせいちょうのいちぶだ" },
+  { text: "心を込めた仕事は必ず伝わる", reading: "こころをこめたしごとはかならずつたわる" },
+  { text: "誰かの一言が人生を変えることもある", reading: "だれかのひとことがじんせいをかえることもある" },
+  { text: "未来を恐れず今を生きよ", reading: "みらいをおそれずいまをいきよ" },
+  { text: "見えない努力が本物の力になる", reading: "みえないどりょくがほんもののちからになる" },
+  { text: "一度きりの人生を楽しめ", reading: "いちどきりのじんせいをたのしめ" },
+  { text: "心の中の炎を消すな", reading: "こころのなかのほのおをけすな" },
+  { text: "人の痛みが分かる人は強い", reading: "ひとのいたみがわかるひとはつよい" },
+  { text: "変わらない日常の中にも幸せはある", reading: "かわらないにちじょうのなかにもしあわせはある" },
+  { text: "遠回りも人生の一部だ", reading: "とおまわりもじんせいのいちぶだ" },
+  { text: "諦めの言葉より挑戦の言葉を選べ", reading: "あきらめのことばよりちょうせんのことばをえらべ" },
+  { text: "誰よりも自分を信じよ", reading: "だれよりもじぶんをしんじよ" },
+  { text: "積み上げた時間は嘘をつかない", reading: "つみあげたじかんはうそをつかない" },
+  { text: "一瞬の努力より一生の継続だ", reading: "いっしゅんのどりょくよりいっしょうのけいぞくだ" },
+  { text: "小さな成功を積み重ねよ", reading: "ちいさなせいこうをつみかさねよ" },
+  { text: "心の余白が優しさを生む", reading: "こころのよはくがやさしさをうむ" },
+  { text: "悔いのない一日を過ごせ", reading: "くいのないいちにちをすごせ" },
+  { text: "自分らしさを大切にせよ", reading: "じぶんらしさをたいせつにせよ" },
+  { text: "苦しさの向こうに光がある", reading: "くるしさのむこうにひかりがある" },
+  { text: "人生に無駄な回り道はない", reading: "じんせいにむだなまわりみちはない" },
+  { text: "挑戦する心を失うな", reading: "ちょうせんするこころをうしなうな" },
+  { text: "今日の努力が明日の自信になる", reading: "きょうのどりょくがあすのじしんになる" },
+  { text: "何度でも立ち上がればいい", reading: "なんどでもたちあがればいい" },
+  { text: "心が折れそうな時ほど深呼吸せよ", reading: "こころがおれそうなときほどしんこきゅうせよ" },
+  { text: "過去を悔やむより今を生きよ", reading: "かこをくやむよりいまをいきよ" },
+  { text: "人は支え合って生きている", reading: "ひとはささえあっていきている" },
+  { text: "自分に厳しく人に優しく", reading: "じぶんにきびしくひとにやさしく" },
+  { text: "小さな勇気が大きな変化を生む", reading: "ちいさなゆうきがおおきなへんかをうむ" },
+  { text: "涙を流した分だけ人は優しくなる", reading: "なみだをながしたぶんだけひとはやさしくなる" },
+  { text: "一つの失敗が全てを決めるわけではない", reading: "ひとつのしっぱいがすべてをきめるわけではない" },
+  { text: "心に太陽を、唇に歌を", reading: "こころにたいようをくちびるにうたを" },
+  { text: "諦めなければ夢はいつか叶う", reading: "あきらめなければゆめはいつかかなう" },
+  { text: "誰かのために頑張れる人は強い", reading: "だれかのためにがんばれるひとはつよい" },
+  { text: "迷いながらでも前に進めばいい", reading: "まよいながらでもまえにすすめばいい" },
+  { text: "努力した過程こそが財産だ", reading: "どりょくしたかていこそがざいさんだ" },
+  { text: "心の準備ができれば道は開く", reading: "こころのじゅんびができればみちはひらく" },
+  { text: "一日一善を心がけよ", reading: "いちにちいちぜんをこころがけよ" },
+  { text: "人生は自分で描く一枚の絵だ", reading: "じんせいはじぶんでえがくいちまいのえだ" },
+  { text: "変わり続けることこそ成長だ", reading: "かわりつづけることこそせいちょうだ" },
+  { text: "苦しみを乗り越えた先に本当の喜びがある", reading: "くるしみをのりこえたさきにほんとうのよろこびがある" },
+  { text: "自分の弱さを知る者ほど強くなれる", reading: "じぶんのよわさをしるものほどつよくなれる" },
+  { text: "今日という一日を大切に生きよ", reading: "きょうといういちにちをたいせつにいきよ" },
+  { text: "未来は自分の手で切り開くものだ", reading: "みらいはじぶんのてできりひらくものだ" },
+  { text: "挑戦し続ける限り青春は終わらない", reading: "ちょうせんしつづけるかぎりせいしゅんはおわらない" },
+];
+
+const YOON_ALT = {
+  'きゃ':['kya'], 'きゅ':['kyu'], 'きょ':['kyo'],
+  'しゃ':['sha','sya'], 'しゅ':['shu','syu'], 'しょ':['sho','syo'],
+  'ちゃ':['cha','tya'], 'ちゅ':['chu','tyu'], 'ちょ':['cho','tyo'],
+  'にゃ':['nya'], 'にゅ':['nyu'], 'にょ':['nyo'],
+  'ひゃ':['hya'], 'ひゅ':['hyu'], 'ひょ':['hyo'],
+  'みゃ':['mya'], 'みゅ':['myu'], 'みょ':['myo'],
+  'りゃ':['rya'], 'りゅ':['ryu'], 'りょ':['ryo'],
+  'ぎゃ':['gya'], 'ぎゅ':['gyu'], 'ぎょ':['gyo'],
+  'じゃ':['ja','zya','jya'], 'じゅ':['ju','zyu','jyu'], 'じょ':['jo','zyo','jyo'],
+  'びゃ':['bya'], 'びゅ':['byu'], 'びょ':['byo'],
+  'ぴゃ':['pya'], 'ぴゅ':['pyu'], 'ぴょ':['pyo'],
+};
+
+const SINGLE_ALT = {
+  'あ':['a'], 'い':['i'], 'う':['u'], 'え':['e'], 'お':['o'],
+  'か':['ka'], 'き':['ki'], 'く':['ku'], 'け':['ke'], 'こ':['ko'],
+  'さ':['sa'], 'し':['shi','si'], 'す':['su'], 'せ':['se'], 'そ':['so'],
+  'た':['ta'], 'ち':['chi','ti'], 'つ':['tsu','tu'], 'て':['te'], 'と':['to'],
+  'な':['na'], 'に':['ni'], 'ぬ':['nu'], 'ね':['ne'], 'の':['no'],
+  'は':['ha'], 'ひ':['hi'], 'ふ':['fu','hu'], 'へ':['he'], 'ほ':['ho'],
+  'ま':['ma'], 'み':['mi'], 'む':['mu'], 'め':['me'], 'も':['mo'],
+  'や':['ya'], 'ゆ':['yu'], 'よ':['yo'],
+  'ら':['ra'], 'り':['ri'], 'る':['ru'], 'れ':['re'], 'ろ':['ro'],
+  'わ':['wa'], 'を':['wo','o'], 'ん':['n','nn'],
+  'が':['ga'], 'ぎ':['gi'], 'ぐ':['gu'], 'げ':['ge'], 'ご':['go'],
+  'ざ':['za'], 'じ':['ji','zi'], 'ず':['zu'], 'ぜ':['ze'], 'ぞ':['zo'],
+  'だ':['da'], 'ぢ':['ji','di'], 'づ':['zu','du'], 'で':['de'], 'ど':['do'],
+  'ば':['ba'], 'び':['bi'], 'ぶ':['bu'], 'べ':['be'], 'ぼ':['bo'],
+  'ぱ':['pa'], 'ぴ':['pi'], 'ぷ':['pu'], 'ぺ':['pe'], 'ぽ':['po'],
+};
+
+function buildUnitsFromReading(reading) {
+  const chars = Array.from(reading);
+  const units = [];
+  let i = 0;
+  while (i < chars.length) {
+    const c = chars[i];
+    if (c === 'っ' && i + 1 < chars.length) {
+      const two = chars.slice(i + 1, i + 3).join('');
+      let baseAlts;
+      let consumed;
+      if (YOON_ALT[two]) {
+        baseAlts = YOON_ALT[two];
+        consumed = 3;
+      } else {
+        baseAlts = SINGLE_ALT[chars[i + 1]] || [chars[i + 1]];
+        consumed = 2;
+      }
+      const alts = baseAlts.map((a) => (a.startsWith('ch') ? 't' : a[0]) + a);
+      units.push({ display: alts[0], alternatives: alts });
+      i += consumed;
+      continue;
+    }
+    const two = chars.slice(i, i + 2).join('');
+    if (YOON_ALT[two]) {
+      units.push({ display: YOON_ALT[two][0], alternatives: YOON_ALT[two] });
+      i += 2;
+      continue;
+    }
+    const alts = SINGLE_ALT[c] || [c];
+    units.push({ display: alts[0], alternatives: alts });
+    i += 1;
+  }
+  return units;
+}
+
+function buildUnitsFromText(text) {
+  return text.split('').map((ch) => ({ display: ch, alternatives: [ch] }));
+}
+
+function getQuoteUnits(mode, index) {
+  if (mode === 'en') {
+    return { units: buildUnitsFromText(QUOTES_EN[index]), reference: null };
+  }
+  const q = QUOTES_JA[index];
+  return { units: buildUnitsFromReading(q.reading), reference: q.text };
+}
+
+function quoteCount(mode) {
+  return mode === 'en' ? QUOTES_EN.length : QUOTES_JA.length;
+}
+
+function pickNextIndex(prevIndex, total) {
+  if (total <= 1) return 0;
+  let idx = Math.floor(Math.random() * total);
+  while (idx === prevIndex) {
+    idx = Math.floor(Math.random() * total);
+  }
+  return idx;
+}
+
+const AUTH_ERROR_MESSAGES = {
+  'auth/api-key-not-valid.-please-pass-a-valid-api-key.': 'Firebaseの設定が正しくありません。firebase-config.js の内容を確認してください。',
+  'auth/invalid-api-key': 'Firebaseの設定が正しくありません。firebase-config.js の内容を確認してください。',
+  'auth/invalid-email': 'メールアドレスの形式が正しくありません。',
+  'auth/user-disabled': 'このアカウントは無効化されています。',
+  'auth/invalid-action-code': 'ログインリンクが無効か、期限切れです。もう一度リンクを送ってください。',
+  'auth/expired-action-code': 'ログインリンクの有効期限が切れています。もう一度リンクを送ってください。',
+  'auth/unauthorized-continue-uri': 'このサイトのドメインがFirebaseの「承認済みドメイン」に登録されていません。',
+  'auth/network-request-failed': '通信エラーが発生しました。ネットワーク接続を確認してください。',
+  'permission-denied': 'データへのアクセスが拒否されました。Firestoreのセキュリティルールを確認してください。',
+};
+
+function friendlyAuthError(err) {
+  return AUTH_ERROR_MESSAGES[err.code] || err.message;
+}
+
+function App() {
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authUser, setAuthUser] = useState(null);
+  const [authError, setAuthError] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [linkSentTo, setLinkSentTo] = useState('');
+  const [cumulativeTotal, setCumulativeTotal] = useState(0);
+  const [cumulativeCorrect, setCumulativeCorrect] = useState(0);
+
+  const authUserRef = useRef(null);
+  const cumulativeTotalRef = useRef(0);
+  const cumulativeCorrectRef = useRef(0);
+
+  useEffect(() => { authUserRef.current = authUser; }, [authUser]);
+
+  useEffect(() => {
+    if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) {
+      setAuthError('Firebaseの設定が完了していません。firebase-config.js を確認してください。');
+      setAuthLoading(false);
+      return;
+    }
+    const auth = firebase.auth();
+
+    if (auth.isSignInWithEmailLink(window.location.href)) {
+      let email = window.localStorage.getItem('meigenTypingEmail');
+      if (!email) {
+        email = window.prompt('確認のため、ログインに使ったメールアドレスを入力してください');
+      }
+      if (email) {
+        auth.signInWithEmailLink(email, window.location.href)
+          .then(() => {
+            window.localStorage.removeItem('meigenTypingEmail');
+            window.history.replaceState({}, document.title, window.location.pathname);
+          })
+          .catch((err) => setAuthError(friendlyAuthError(err)));
+      }
+    }
+
+    const unsubscribe = auth.onAuthStateChanged((u) => {
+      setAuthUser(u);
+      setAuthLoading(false);
+      if (u) {
+        firebase.firestore().collection('typingStats').doc(u.uid).get()
+          .then((doc) => {
+            const data = doc.data();
+            const total = (data && data.totalTyped) || 0;
+            const correct = (data && data.correctTyped) || 0;
+            cumulativeTotalRef.current = total;
+            cumulativeCorrectRef.current = correct;
+            setCumulativeTotal(total);
+            setCumulativeCorrect(correct);
+          })
+          .catch((err) => setAuthError(friendlyAuthError(err)));
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleSendLink = (e) => {
+    e.preventDefault();
+    setAuthError('');
+    const email = emailInput.trim();
+    if (!email) return;
+    const actionCodeSettings = {
+      url: window.location.href.split('?')[0],
+      handleCodeInApp: true,
+    };
+    firebase.auth().sendSignInLinkToEmail(email, actionCodeSettings)
+      .then(() => {
+        window.localStorage.setItem('meigenTypingEmail', email);
+        setLinkSentTo(email);
+      })
+      .catch((err) => setAuthError(friendlyAuthError(err)));
+  };
+
+  const handleLogout = () => {
+    firebase.auth().signOut();
+    setCumulativeTotal(0);
+    setCumulativeCorrect(0);
+  };
+
+  const [mode, setMode] = useState('ja');
+  const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * quoteCount('ja')));
+  const [quoteInfo, setQuoteInfo] = useState(() => getQuoteUnits('ja', quoteIndex));
+  const [completedTexts, setCompletedTexts] = useState([]);
+  const [unitIndex, setUnitIndex] = useState(0);
+  const [typedOffset, setTypedOffset] = useState(0);
+  const [candidates, setCandidates] = useState(() => quoteInfo.units[0]?.alternatives || []);
+  const [wrongFlag, setWrongFlag] = useState(false);
+  const [totalTyped, setTotalTyped] = useState(0);
+  const [correctTyped, setCorrectTyped] = useState(0);
+  const [showResult, setShowResult] = useState(false);
+
+  const modeRef = useRef(mode);
+  const quoteIndexRef = useRef(quoteIndex);
+  const quoteInfoRef = useRef(quoteInfo);
+  const completedTextsRef = useRef(completedTexts);
+  const unitIndexRef = useRef(unitIndex);
+  const typedOffsetRef = useRef(typedOffset);
+  const candidatesRef = useRef(candidates);
+  const showResultRef = useRef(showResult);
+
+  useEffect(() => { showResultRef.current = showResult; }, [showResult]);
+
+  const advanceToNextQuote = useCallback((forMode) => {
+    const total = quoteCount(forMode);
+    const nextIdx = pickNextIndex(quoteIndexRef.current, total);
+    const nextInfo = getQuoteUnits(forMode, nextIdx);
+    const firstCands = nextInfo.units[0]?.alternatives || [];
+
+    quoteIndexRef.current = nextIdx;
+    quoteInfoRef.current = nextInfo;
+    completedTextsRef.current = [];
+    unitIndexRef.current = 0;
+    typedOffsetRef.current = 0;
+    candidatesRef.current = firstCands;
+
+    setQuoteIndex(nextIdx);
+    setQuoteInfo(nextInfo);
+    setCompletedTexts([]);
+    setUnitIndex(0);
+    setTypedOffset(0);
+    setCandidates(firstCands);
+    setWrongFlag(false);
+  }, []);
+
+  const handleKeyDown = useCallback((e) => {
+    if (!authUserRef.current) return;
+    if (showResultRef.current) return;
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key.length !== 1) return;
+
+    e.preventDefault();
+
+    const units = quoteInfoRef.current.units;
+    const uIdx = unitIndexRef.current;
+    if (uIdx >= units.length) return;
+
+    const offset = typedOffsetRef.current;
+    const cands = candidatesRef.current;
+    const typed = e.key;
+    const matching = cands.filter((c) => c[offset] === typed);
+
+    setTotalTyped((t) => t + 1);
+
+    if (matching.length === 0) {
+      setWrongFlag(true);
+      return;
+    }
+
+    setWrongFlag(false);
+    setCorrectTyped((c) => c + 1);
+
+    const newOffset = offset + 1;
+    const completed = matching.find((c) => c.length === newOffset);
+
+    if (completed) {
+      const newCompleted = completedTextsRef.current.concat([completed]);
+      completedTextsRef.current = newCompleted;
+      setCompletedTexts(newCompleted);
+
+      const nextUnitIdx = uIdx + 1;
+      unitIndexRef.current = nextUnitIdx;
+      typedOffsetRef.current = 0;
+      setUnitIndex(nextUnitIdx);
+      setTypedOffset(0);
+
+      if (nextUnitIdx >= units.length) {
+        advanceToNextQuote(modeRef.current);
+      } else {
+        const nextCands = units[nextUnitIdx].alternatives;
+        candidatesRef.current = nextCands;
+        setCandidates(nextCands);
+      }
+    } else {
+      typedOffsetRef.current = newOffset;
+      candidatesRef.current = matching;
+      setTypedOffset(newOffset);
+      setCandidates(matching);
+    }
+  }, [advanceToNextQuote]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  const handleFinish = () => {
+    setShowResult(true);
+    const user = authUserRef.current;
+    if (user) {
+      const newTotal = cumulativeTotalRef.current + totalTyped;
+      const newCorrect = cumulativeCorrectRef.current + correctTyped;
+      cumulativeTotalRef.current = newTotal;
+      cumulativeCorrectRef.current = newCorrect;
+      setCumulativeTotal(newTotal);
+      setCumulativeCorrect(newCorrect);
+      firebase.firestore().collection('typingStats').doc(user.uid).set({
+        totalTyped: newTotal,
+        correctTyped: newCorrect,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true }).catch((err) => setAuthError(friendlyAuthError(err)));
+    }
+  };
+
+  const startFresh = useCallback((forMode) => {
+    setTotalTyped(0);
+    setCorrectTyped(0);
+    setShowResult(false);
+    quoteIndexRef.current = -1;
+    advanceToNextQuote(forMode);
+  }, [advanceToNextQuote]);
+
+  const handleRestart = () => {
+    startFresh(modeRef.current);
+  };
+
+  const handleModeToggle = () => {
+    const nextMode = modeRef.current === 'ja' ? 'en' : 'ja';
+    modeRef.current = nextMode;
+    setMode(nextMode);
+    startFresh(nextMode);
+  };
+
+  const accuracy = totalTyped > 0 ? ((correctTyped / totalTyped) * 100).toFixed(1) : '0.0';
+
+  const resolvedPrefix = completedTexts.join('');
+  const currentUnit = quoteInfo.units[unitIndex];
+  const preview = currentUnit ? (candidates[0] || '').slice(typedOffset) : '';
+  const future = quoteInfo.units.slice(unitIndex + 1).map((u) => u.display).join('');
+  const displayTarget = resolvedPrefix + preview + future;
+  const currentPos = resolvedPrefix.length;
+
+  if (authLoading) {
+    return (
+      <div className="paper-card rounded-sm px-10 py-10 text-center">
+        <p className="typewriter-font text-[#8a7a56]">読み込み中...</p>
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <div className="relative w-full max-w-md">
+        <div className="paper-card rounded-sm px-10 py-12 text-center">
+          <h1 className="typewriter-font text-2xl text-[#3a2f1e] mb-2">名言タイピング</h1>
+          <p className="text-xs text-[#8a7a56] mb-8 tracking-wide">メールアドレスでログインしてください</p>
+
+          {linkSentTo ? (
+            <p className="typewriter-font text-sm text-[#3a2f1e] leading-relaxed">
+              {linkSentTo} 宛にログイン用のリンクを送りました。
+              <br />
+              メール内のリンクを開いてください。
+            </p>
+          ) : (
+            <form onSubmit={handleSendLink}>
+              <input
+                type="email"
+                required
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="you@example.com"
+                className="typewriter-font w-full px-4 py-3 mb-4 rounded-sm border border-[#d9cba8] bg-[#faf5e9] text-[#3a2f1e] text-center focus:outline-none focus:border-[#8a7a56]"
+              />
+              <button
+                type="submit"
+                className="retro-btn w-full px-5 py-3 bg-[#5c4a32] text-[#f4ecd8] tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
+              >
+                ログインリンクを送る
+              </button>
+            </form>
+          )}
+
+          {authError && (
+            <p className="text-xs text-[#a13d2e] mt-4">{authError}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full max-w-3xl">
+      <div className="ink-stain w-64 h-64 -top-10 -left-16"></div>
+      <div className="ink-stain w-72 h-72 -bottom-16 -right-10"></div>
+
+      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-20 text-xs text-[#8a7a56] typewriter-font flex items-center gap-3">
+        <span>{authUser.email}</span>
+        <button onClick={handleLogout} className="underline hover:text-[#5c4a32]">ログアウト</button>
+      </div>
+
+      <button
+        onClick={handleModeToggle}
+        className="retro-btn fixed top-5 left-5 z-20 px-5 py-2 bg-[#5c4a32] text-[#f4ecd8] text-sm tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
+      >
+        {mode === 'ja' ? 'English' : '日本語'}
+      </button>
+
+      <button
+        onClick={handleFinish}
+        className="retro-btn fixed top-5 right-5 z-20 px-5 py-2 bg-[#5c4a32] text-[#f4ecd8] text-sm tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
+      >
+        終わり
+      </button>
+
+      <div className="paper-card relative rounded-sm px-8 py-14 sm:px-14 sm:py-16">
+        <p className="text-center text-xs text-[#8a7a56] mb-8 tracking-[0.3em] uppercase typewriter-font">
+          Endless Typing
+        </p>
+
+        {quoteInfo.reference && (
+          <p className="typewriter-font text-lg sm:text-xl text-center text-[#8a7a56] mb-4 select-none break-words">
+            {quoteInfo.reference}
+          </p>
+        )}
+
+        <p className="typewriter-font text-xl sm:text-2xl leading-relaxed sm:leading-loose text-[#3a2f1e] select-none break-words">
+          {displayTarget.split('').map((ch, i) => {
+            let cls = 'char-pending';
+            if (i < currentPos) cls = 'char-correct';
+            else if (i === currentPos) cls = wrongFlag ? 'char-current-wrong' : 'char-current';
+            return (
+              <span key={i} className={cls}>
+                {ch === ' ' ? ' ' : ch}
+              </span>
+            );
+          })}
+        </p>
+      </div>
+
+      <p className="text-center mt-6 text-[#8a7a56] text-xs typewriter-font tracking-wide">
+        キーボードでそのまま打ち続けてください
+      </p>
+
+      {showResult && (
+        <div className="fixed inset-0 bg-[#2a2117]/60 flex items-center justify-center z-30 p-4">
+          <div className="paper-card rounded-sm px-10 py-10 w-full max-w-sm text-center relative">
+            <h2 className="typewriter-font text-2xl text-[#3a2f1e] mb-8 tracking-wide">Result</h2>
+
+            <div className="mb-6">
+              <p className="text-xs text-[#8a7a56] tracking-[0.2em] uppercase mb-1">総タイプ文字数</p>
+              <p className="typewriter-font text-3xl text-[#3a2f1e]">{totalTyped}</p>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-xs text-[#8a7a56] tracking-[0.2em] uppercase mb-1">正誤率</p>
+              <p className="typewriter-font text-3xl text-[#3a2f1e]">{accuracy}%</p>
+            </div>
+
+            <div className="mb-9 pt-4 border-t border-[#d9cba8]">
+              <p className="text-xs text-[#8a7a56] tracking-[0.2em] uppercase mb-1">累計タイプ数(全端末合計)</p>
+              <p className="typewriter-font text-2xl text-[#3a2f1e]">{cumulativeTotal}</p>
+            </div>
+
+            <button
+              onClick={handleRestart}
+              className="retro-btn w-full px-5 py-3 bg-[#5c4a32] text-[#f4ecd8] tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
+            >
+              もう一度
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
