@@ -6,7 +6,7 @@
 <title>名言タイピング</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -26,6 +26,9 @@
   }
   .typewriter-font {
     font-family: 'Special Elite', 'Courier Prime', monospace;
+  }
+  .gothic-font {
+    font-family: 'Noto Sans JP', sans-serif;
   }
   .paper-card {
     background-color: #f4ecd8;
@@ -1035,6 +1038,7 @@ function friendlyAuthError(err) {
 }
 
 function App() {
+  const [screen, setScreen] = useState('top');
   const [authLoading, setAuthLoading] = useState(true);
   const [authUser, setAuthUser] = useState(null);
   const [authError, setAuthError] = useState('');
@@ -1269,6 +1273,22 @@ function App() {
   const displayTarget = resolvedPrefix + preview + future;
   const currentPos = resolvedPrefix.length;
 
+  if (screen === 'top') {
+    return (
+      <div className="flex flex-col items-center">
+        <h1 className="gothic-font text-4xl sm:text-6xl font-black text-[#3a2f1e] tracking-wide">
+          無限タイピング
+        </h1>
+        <button
+          onClick={() => setScreen('app')}
+          className="retro-btn mt-14 px-10 py-3 bg-[#5c4a32] text-[#f4ecd8] tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
+        >
+          はじめる
+        </button>
+      </div>
+    );
+  }
+
   if (authLoading) {
     return (
       <div className="paper-card rounded-sm px-10 py-10 text-center">
@@ -1401,6 +1421,13 @@ function App() {
               className="retro-btn w-full px-5 py-3 bg-[#5c4a32] text-[#f4ecd8] tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
             >
               もう一度
+            </button>
+
+            <button
+              onClick={() => setScreen('top')}
+              className="retro-btn w-full mt-3 px-5 py-3 bg-transparent text-[#5c4a32] border border-[#5c4a32] tracking-wider hover:bg-[#5c4a32]/10 active:scale-95 transition"
+            >
+              トップに戻る
             </button>
           </div>
         </div>
