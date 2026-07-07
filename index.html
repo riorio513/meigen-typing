@@ -843,7 +843,7 @@ const QUOTES_JA = [
   { text: "笑顔の数だけ幸せになれる", reading: "えがおのかずだけしあわせになれる" },
   { text: "誰かの支えになれる自分でありたい", reading: "だれかのささえになれるじぶんでありたい" },
   { text: "今日の一歩が明日を作る", reading: "きょうのいっぽがあすをつくる" },
-  { text: "できないと決めつけるな", reading: "できないとさだめつけるな" },
+  { text: "できないと決めつけるな", reading: "できないときめつけるな" },
   { text: "挑戦こそが人生を彩る", reading: "ちょうせんこそがじんせいをいろどる" },
   { text: "心の奥にある声を聞け", reading: "こころのおくにあるこえをきけ" },
   { text: "諦めた先に道はない", reading: "あきらめたさきにみちはない" },
@@ -1002,10 +1002,10 @@ function buildUnitsFromText(text) {
 
 function getQuoteUnits(mode, index) {
   if (mode === 'en') {
-    return { units: buildUnitsFromText(QUOTES_EN[index]), reference: null, note: null };
+    return { units: buildUnitsFromText(QUOTES_EN[index]), reference: null, note: null, reading: null };
   }
   const q = QUOTES_JA[index];
-  return { units: buildUnitsFromReading(q.reading), reference: q.text, note: q.note || null };
+  return { units: buildUnitsFromReading(q.reading), reference: q.text, note: q.note || null, reading: q.reading };
 }
 
 function quoteCount(mode) {
@@ -1368,7 +1368,10 @@ function App() {
 
         {quoteInfo.reference && (
           <p className="typewriter-font text-lg sm:text-xl text-center text-[#8a7a56] mb-4 select-none break-words">
-            {quoteInfo.reference}
+            <ruby>
+              {quoteInfo.reference}
+              <rt className="text-[10px] sm:text-xs text-[#a89a78] tracking-normal">{quoteInfo.reading}</rt>
+            </ruby>
           </p>
         )}
 
