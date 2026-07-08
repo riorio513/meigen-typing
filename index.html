@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>名言タイピング</title>
+<title>無限タイピング</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&family=Noto+Sans+JP:wght@700;900&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -29,6 +29,9 @@
   }
   .gothic-font {
     font-family: 'Noto Sans JP', sans-serif;
+  }
+  .mincho-font {
+    font-family: 'Yu Mincho', 'YuMincho', '游明朝', 'Noto Serif JP', serif;
   }
   .paper-card {
     background-color: #f4ecd8;
@@ -1438,6 +1441,7 @@ function App() {
   const unitIndexRef = useRef(unitIndex);
   const typedOffsetRef = useRef(typedOffset);
   const candidatesRef = useRef(candidates);
+  const pendingCommitRef = useRef(null);
   const showResultRef = useRef(showResult);
 
   useEffect(() => { showResultRef.current = showResult; }, [showResult]);
@@ -1454,6 +1458,7 @@ function App() {
     unitIndexRef.current = 0;
     typedOffsetRef.current = 0;
     candidatesRef.current = firstCands;
+    pendingCommitRef.current = null;
 
     setQuoteIndex(nextIdx);
     setQuoteInfo(nextInfo);
@@ -1463,6 +1468,30 @@ function App() {
     setCandidates(firstCands);
     setWrongFlag(false);
   }, []);
+
+  // Commits a finished unit (e.g. "n" for ん) and moves on to the next unit.
+  // Returns the new unit index, or null if the quote finished and a new one started.
+  const commitUnit = useCallback((completedStr, uIdx, units) => {
+    const newCompleted = completedTextsRef.current.concat([completedStr]);
+    completedTextsRef.current = newCompleted;
+    setCompletedTexts(newCompleted);
+
+    const nextUnitIdx = uIdx + 1;
+    unitIndexRef.current = nextUnitIdx;
+    typedOffsetRef.current = 0;
+    pendingCommitRef.current = null;
+    setUnitIndex(nextUnitIdx);
+    setTypedOffset(0);
+
+    if (nextUnitIdx >= units.length) {
+      advanceToNextQuote(modeRef.current);
+      return null;
+    }
+    const nextCands = units[nextUnitIdx].alternatives;
+    candidatesRef.current = nextCands;
+    setCandidates(nextCands);
+    return nextUnitIdx;
+  }, [advanceToNextQuote]);
 
   const handleKeyDown = useCallback((e) => {
     if (!authUserRef.current) return;
@@ -1474,13 +1503,26 @@ function App() {
     e.preventDefault();
 
     const units = quoteInfoRef.current.units;
-    const uIdx = unitIndexRef.current;
+    let uIdx = unitIndexRef.current;
     if (uIdx >= units.length) return;
 
-    const offset = typedOffsetRef.current;
-    const cands = candidatesRef.current;
     const typed = e.key;
-    const matching = cands.filter((c) => c[offset] === typed);
+    let offset = typedOffsetRef.current;
+    let cands = candidatesRef.current;
+    let matching = cands.filter((c) => c[offset] === typed);
+
+    // e.g. "ん" has alternatives ["n", "nn"]. If "n" was already a complete
+    // match but "nn" is still possible, this key may actually belong to the
+    // next unit (the shorter reading was intended). Commit the short reading
+    // and retry this key against the next unit instead of flagging it wrong.
+    if (matching.length === 0 && pendingCommitRef.current) {
+      const nextUnitIdx = commitUnit(pendingCommitRef.current, uIdx, units);
+      if (nextUnitIdx === null) return;
+      uIdx = nextUnitIdx;
+      offset = 0;
+      cands = candidatesRef.current;
+      matching = cands.filter((c) => c[offset] === typed);
+    }
 
     setTotalTyped((t) => t + 1);
 
@@ -1493,33 +1535,27 @@ function App() {
     setCorrectTyped((c) => c + 1);
 
     const newOffset = offset + 1;
-    const completed = matching.find((c) => c.length === newOffset);
+    const exactMatches = matching.filter((c) => c.length === newOffset);
+    const longerMatches = matching.filter((c) => c.length > newOffset);
 
-    if (completed) {
-      const newCompleted = completedTextsRef.current.concat([completed]);
-      completedTextsRef.current = newCompleted;
-      setCompletedTexts(newCompleted);
-
-      const nextUnitIdx = uIdx + 1;
-      unitIndexRef.current = nextUnitIdx;
-      typedOffsetRef.current = 0;
-      setUnitIndex(nextUnitIdx);
-      setTypedOffset(0);
-
-      if (nextUnitIdx >= units.length) {
-        advanceToNextQuote(modeRef.current);
-      } else {
-        const nextCands = units[nextUnitIdx].alternatives;
-        candidatesRef.current = nextCands;
-        setCandidates(nextCands);
-      }
+    if (exactMatches.length > 0 && longerMatches.length > 0) {
+      // Ambiguous: a shorter alternative just completed but a longer one
+      // (e.g. "nn") is still viable. Keep both alive and remember the short one.
+      pendingCommitRef.current = exactMatches[0];
+      typedOffsetRef.current = newOffset;
+      candidatesRef.current = matching;
+      setTypedOffset(newOffset);
+      setCandidates(matching);
+    } else if (exactMatches.length > 0) {
+      commitUnit(exactMatches[0], uIdx, units);
     } else {
+      pendingCommitRef.current = null;
       typedOffsetRef.current = newOffset;
       candidatesRef.current = matching;
       setTypedOffset(newOffset);
       setCandidates(matching);
     }
-  }, [advanceToNextQuote]);
+  }, [commitUnit]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -1600,7 +1636,7 @@ function App() {
     return (
       <div className="relative w-full max-w-md">
         <div className="paper-card rounded-sm px-10 py-12 text-center">
-          <h1 className="typewriter-font text-2xl text-[#3a2f1e] mb-2">名言タイピング</h1>
+          <h1 className="typewriter-font text-2xl text-[#3a2f1e] mb-2">無限タイピング</h1>
           <p className="text-xs text-[#8a7a56] mb-8 tracking-wide">メールアドレスでログインしてください</p>
 
           {linkSentTo ? (
@@ -1660,13 +1696,13 @@ function App() {
         終わり
       </button>
 
-      <div className="paper-card relative rounded-sm px-8 py-14 sm:px-14 sm:py-16">
+      <div className="paper-card relative rounded-sm px-8 py-14 sm:px-14 sm:py-16 min-h-[280px] sm:min-h-[340px] flex flex-col justify-center">
         <p className="text-center text-xs text-[#8a7a56] mb-8 tracking-[0.3em] uppercase typewriter-font">
           Endless Typing
         </p>
 
         {quoteInfo.reference && (
-          <p className="typewriter-font text-lg sm:text-xl text-center text-[#8a7a56] mb-4 select-none break-words">
+          <p className="mincho-font text-lg sm:text-xl text-center text-[#8a7a56] mb-[5mm] select-none break-words">
             <ruby>
               {quoteInfo.reference}
               <rt className="text-[10px] sm:text-xs text-[#a89a78] tracking-normal">{quoteInfo.reading}</rt>
@@ -1674,7 +1710,7 @@ function App() {
           </p>
         )}
 
-        <p className="typewriter-font text-xl sm:text-2xl leading-relaxed sm:leading-loose text-[#3a2f1e] select-none break-words text-center">
+        <p className="mincho-font text-xl sm:text-2xl leading-relaxed sm:leading-loose text-[#3a2f1e] select-none break-words text-center">
           {displayTarget.split('').map((ch, i) => {
             let cls = 'char-pending';
             if (i < currentPos) cls = 'char-correct';
