@@ -1328,10 +1328,14 @@ const AUTH_ERROR_MESSAGES = {
   'auth/invalid-api-key': 'Firebaseの設定が正しくありません。firebase-config.js の内容を確認してください。',
   'auth/invalid-email': 'メールアドレスの形式が正しくありません。',
   'auth/user-disabled': 'このアカウントは無効化されています。',
-  'auth/invalid-action-code': 'ログインリンクが無効か、期限切れです。もう一度リンクを送ってください。',
-  'auth/expired-action-code': 'ログインリンクの有効期限が切れています。もう一度リンクを送ってください。',
   'auth/unauthorized-continue-uri': 'このサイトのドメインがFirebaseの「承認済みドメイン」に登録されていません。',
   'auth/network-request-failed': '通信エラーが発生しました。ネットワーク接続を確認してください。',
+  'auth/email-already-in-use': 'このメールアドレスはすでに登録されています。「ログイン」をお試しください。',
+  'auth/weak-password': 'パスワードは6文字以上で設定してください。',
+  'auth/wrong-password': 'パスワードが正しくありません。',
+  'auth/missing-password': 'パスワードを入力してください。',
+  'auth/user-not-found': 'このメールアドレスはまだ登録されていません。「新規登録」をお試しください。',
+  'auth/invalid-credential': 'メールアドレスまたはパスワードが正しくありません。',
   'permission-denied': 'データへのアクセスが拒否されました。Firestoreのセキュリティルールを確認してください。',
 };
 
@@ -1345,7 +1349,7 @@ function App() {
   const [authUser, setAuthUser] = useState(null);
   const [authError, setAuthError] = useState('');
   const [emailInput, setEmailInput] = useState('');
-  const [linkSentTo, setLinkSentTo] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [cumulativeTotal, setCumulativeTotal] = useState(0);
   const [cumulativeCorrect, setCumulativeCorrect] = useState(0);
 
@@ -1362,21 +1366,6 @@ function App() {
       return;
     }
     const auth = firebase.auth();
-
-    if (auth.isSignInWithEmailLink(window.location.href)) {
-      let email = window.localStorage.getItem('meigenTypingEmail');
-      if (!email) {
-        email = window.prompt('確認のため、ログインに使ったメールアドレスを入力してください');
-      }
-      if (email) {
-        auth.signInWithEmailLink(email, window.location.href)
-          .then(() => {
-            window.localStorage.removeItem('meigenTypingEmail');
-            window.history.replaceState({}, document.title, window.location.pathname);
-          })
-          .catch((err) => setAuthError(friendlyAuthError(err)));
-      }
-    }
 
     const unsubscribe = auth.onAuthStateChanged((u) => {
       setAuthUser(u);
@@ -1399,20 +1388,20 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  const handleSendLink = (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
     setAuthError('');
     const email = emailInput.trim();
-    if (!email) return;
-    const actionCodeSettings = {
-      url: window.location.href.split('?')[0],
-      handleCodeInApp: true,
-    };
-    firebase.auth().sendSignInLinkToEmail(email, actionCodeSettings)
-      .then(() => {
-        window.localStorage.setItem('meigenTypingEmail', email);
-        setLinkSentTo(email);
-      })
+    if (!email || !passwordInput) return;
+    firebase.auth().signInWithEmailAndPassword(email, passwordInput)
+      .catch((err) => setAuthError(friendlyAuthError(err)));
+  };
+
+  const handleRegister = () => {
+    setAuthError('');
+    const email = emailInput.trim();
+    if (!email || !passwordInput) return;
+    firebase.auth().createUserWithEmailAndPassword(email, passwordInput)
       .catch((err) => setAuthError(friendlyAuthError(err)));
   };
 
@@ -1637,32 +1626,39 @@ function App() {
       <div className="relative w-full max-w-md">
         <div className="paper-card rounded-sm px-10 py-12 text-center">
           <h1 className="typewriter-font text-2xl text-[#3a2f1e] mb-2">無限タイピング</h1>
-          <p className="text-xs text-[#8a7a56] mb-8 tracking-wide">メールアドレスでログインしてください</p>
+          <p className="text-xs text-[#8a7a56] mb-8 tracking-wide">メールアドレスとパスワードでログインしてください</p>
 
-          {linkSentTo ? (
-            <p className="typewriter-font text-sm text-[#3a2f1e] leading-relaxed">
-              {linkSentTo} 宛にログイン用のリンクを送りました。
-              <br />
-              メール内のリンクを開いてください。
-            </p>
-          ) : (
-            <form onSubmit={handleSendLink}>
-              <input
-                type="email"
-                required
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="you@example.com"
-                className="typewriter-font w-full px-4 py-3 mb-4 rounded-sm border border-[#d9cba8] bg-[#faf5e9] text-[#3a2f1e] text-center focus:outline-none focus:border-[#8a7a56]"
-              />
-              <button
-                type="submit"
-                className="retro-btn w-full px-5 py-3 bg-[#5c4a32] text-[#f4ecd8] tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
-              >
-                ログインリンクを送る
-              </button>
-            </form>
-          )}
+          <form onSubmit={handleLogin}>
+            <input
+              type="email"
+              required
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              placeholder="you@example.com"
+              className="typewriter-font w-full px-4 py-3 mb-4 rounded-sm border border-[#d9cba8] bg-[#faf5e9] text-[#3a2f1e] text-center focus:outline-none focus:border-[#8a7a56]"
+            />
+            <input
+              type="password"
+              required
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              placeholder="パスワード"
+              className="typewriter-font w-full px-4 py-3 mb-4 rounded-sm border border-[#d9cba8] bg-[#faf5e9] text-[#3a2f1e] text-center focus:outline-none focus:border-[#8a7a56]"
+            />
+            <button
+              type="submit"
+              className="retro-btn w-full px-5 py-3 bg-[#5c4a32] text-[#f4ecd8] tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
+            >
+              ログイン
+            </button>
+            <button
+              type="button"
+              onClick={handleRegister}
+              className="retro-btn w-full mt-3 px-5 py-3 bg-transparent text-[#5c4a32] border border-[#5c4a32] tracking-wider hover:bg-[#5c4a32]/10 active:scale-95 transition"
+            >
+              新規登録
+            </button>
+          </form>
 
           {authError && (
             <p className="text-xs text-[#a13d2e] mt-4">{authError}</p>
