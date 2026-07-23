@@ -69,6 +69,63 @@
   .char-pending {
     color: #a89a78;
   }
+
+  /* ===== Shooting mode ===== */
+  .game-sky {
+    background:
+      radial-gradient(circle at 25% 15%, rgba(120,90,50,0.35) 0%, transparent 45%),
+      radial-gradient(circle at 80% 85%, rgba(90,70,40,0.30) 0%, transparent 50%),
+      linear-gradient(160deg, #34281a 0%, #221910 55%, #150e07 100%);
+  }
+  .game-star {
+    position: absolute;
+    border-radius: 50%;
+    background: #f4ecd8;
+    animation: twinkle 3s ease-in-out infinite;
+  }
+  .enemy-card {
+    position: absolute;
+    background-color: #f4ecd8;
+    border: 2px solid #d9cba8;
+    border-radius: 4px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+    will-change: transform, top;
+  }
+  .enemy-active {
+    border-color: #e8c46a;
+    box-shadow: 0 0 0 2px rgba(232,196,106,0.55), 0 0 22px rgba(232,196,106,0.65), 0 6px 18px rgba(0,0,0,0.4);
+  }
+  .enemy-shake { animation: shake 0.18s ease-in-out; }
+  .kill-burst {
+    position: absolute;
+    pointer-events: none;
+    font-weight: 900;
+    color: #e8c46a;
+    text-shadow: 0 0 12px rgba(232,196,106,0.9);
+    animation: killpop 0.55s ease-out forwards;
+  }
+  .escape-burst {
+    position: absolute;
+    pointer-events: none;
+    font-weight: 900;
+    color: #d9705a;
+    text-shadow: 0 0 12px rgba(217,112,90,0.9);
+    animation: escapeflash 0.55s ease-out forwards;
+  }
+  .danger-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #c05a44 20%, #e07a5f 50%, #c05a44 80%, transparent);
+    animation: dangerpulse 1.4s ease-in-out infinite;
+  }
+  .kill-banner { animation: bannerfade 2.6s ease-out forwards; }
+  @keyframes twinkle { 0%,100%{opacity:.2} 50%{opacity:.9} }
+  @keyframes killpop { 0%{transform:translate(-50%,-50%) scale(.5);opacity:1} 100%{transform:translate(-50%,-50%) scale(2.3);opacity:0} }
+  @keyframes escapeflash { 0%{transform:translate(-50%,-50%) scale(1);opacity:.9} 100%{transform:translate(-50%,-50%) scale(1.8);opacity:0} }
+  @keyframes dangerpulse { 0%,100%{opacity:.35} 50%{opacity:.8} }
+  @keyframes bannerfade { 0%{opacity:0;transform:translateY(8px)} 12%{opacity:1;transform:translateY(0)} 78%{opacity:1} 100%{opacity:0;transform:translateY(-4px)} }
+  @keyframes shake { 0%,100%{margin-left:0} 25%{margin-left:-4px} 75%{margin-left:4px} }
 </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -77,1158 +134,254 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 
-const QUOTES_EN = [
-  "The only way to do great work is to love what you do.",
-  "In the middle of difficulty lies opportunity.",
-  "Simplicity is the ultimate sophistication.",
-  "The unexamined life is not worth living.",
-  "Whatever you are, be a good one.",
-  "It does not matter how slowly you go as long as you do not stop.",
-  "Fall seven times, stand up eight.",
-  "A journey of a thousand miles begins with a single step.",
-  "Knowing yourself is the beginning of all wisdom.",
-  "The best time to plant a tree was twenty years ago. The second best time is now.",
-  "Do not go where the path may lead, go instead where there is no path and leave a trail.",
-  "Yesterday is history, tomorrow is a mystery, today is a gift.",
-  "The only limit to our realization of tomorrow is our doubts of today.",
-  "Success is not final, failure is not fatal, it is the courage to continue that counts.",
-  "Life is what happens when you are busy making other plans.",
-  "The way to get started is to quit talking and begin doing.",
-  "Your time is limited, so do not waste it living someone else's life.",
-  "If life were predictable it would cease to be life, and be without flavor.",
-  "The purpose of our lives is to be happy.",
-  "Get busy living, or get busy dying.",
-  "You only live once, but if you do it right, once is enough.",
-  "Many of life's failures are people who did not realize how close they were to success when they gave up.",
-  "If you want to lift yourself up, lift up someone else.",
-  "The mind is everything. What you think you become.",
-  "Strive not to be a success, but rather to be of value.",
-  "Two roads diverged in a wood, and I took the one less traveled by.",
-  "I attribute my success to this: I never gave or took any excuse.",
-  "You miss one hundred percent of the shots you do not take.",
-  "The future belongs to those who believe in the beauty of their dreams.",
-  "It is during our darkest moments that we must focus to see the light.",
-  "Whether you think you can or you think you cannot, you are right.",
-  "The only impossible journey is the one you never begin.",
-  "In this life we cannot do great things. We can only do small things with great love.",
-  "Nothing is impossible, the word itself says I'm possible.",
-  "What lies behind us and what lies before us are tiny matters compared to what lies within us.",
-  "Keep your face always toward the sunshine, and shadows will fall behind you.",
-  "Believe you can and you're halfway there.",
-  "A little progress each day adds up to big results.",
-  "Do not wait to strike till the iron is hot, but make it hot by striking.",
-  "The best preparation for tomorrow is doing your best today.",
-  "Turn your wounds into wisdom.",
-  "You are never too old to set another goal or to dream a new dream.",
-  "Once you learn to quit, it becomes a habit.",
-  "Change your thoughts and you change your world.",
-  "Not all those who wander are lost.",
-  "Actions speak louder than words.",
-  "Practice makes perfect.",
-  "Time heals all wounds.",
-  "Honesty is the best policy.",
-  "Better late than never.",
-  "Every cloud has a silver lining.",
-  "No pain, no gain.",
-  "Where there's a will, there's a way.",
-  "The pen is mightier than the sword.",
-  "When in Rome, do as the Romans do.",
-  "All that glitters is not gold.",
-  "A picture is worth a thousand words.",
-  "Beggars can't be choosers.",
-  "Birds of a feather flock together.",
-  "Don't judge a book by its cover.",
-  "Easy come, easy go.",
-  "Great minds think alike.",
-  "Laughter is the best medicine.",
-  "Look before you leap.",
-  "Necessity is the mother of invention.",
-  "Out of sight, out of mind.",
-  "Practice what you preach.",
-  "The early bird catches the worm.",
-  "The grass is always greener on the other side.",
-  "Two wrongs don't make a right.",
-  "A friend in need is a friend indeed.",
-  "Actions have consequences.",
-  "Better safe than sorry.",
-  "Curiosity killed the cat.",
-  "Every dog has its day.",
-  "Fortune favors the bold.",
-  "Haste makes waste.",
-  "Ignorance is bliss.",
-  "Knowledge is power.",
-  "The greatest glory in living lies not in never falling, but in rising every time we fall.",
-  "It is never too late to be what you might have been.",
-  "In three words I can sum up everything I've learned about life: it goes on.",
-  "The best revenge is massive success.",
-  "Do not judge me by my success, judge me by how many times I fell down and got back up again.",
-  "The only person you are destined to become is the person you decide to be.",
-  "Everything you've ever wanted is on the other side of fear.",
-  "It always seems impossible until it's done.",
-  "Start where you are, use what you have, do what you can.",
-  "The road to success and the road to failure are almost exactly the same.",
-  "You are braver than you believe, stronger than you seem, and smarter than you think.",
-  "Perfection is not attainable, but if we chase perfection we can catch excellence.",
-  "Success usually comes to those who are too busy to be looking for it.",
-  "There is no substitute for hard work.",
-  "You must expect great things of yourself before you can do them.",
-  "Setting goals is the first step in turning the invisible into the visible.",
-  "What we think, we become.",
-  "Happiness is not something ready made, it comes from your own actions.",
-  "Dreams do not work unless you do.",
-  "Small deeds done are better than great deeds planned.",
-  "The journey of a thousand miles begins with one step, and every step counts.",
-  "We are what we repeatedly do, excellence then is not an act but a habit.",
-  "The struggle you are in today is developing the strength you need for tomorrow.",
-  "Continuous effort, not strength or intelligence, is the key to unlocking our potential.",
-  "Great things are done by a series of small things brought together.",
-  "You do not have to be great to start, but you have to start to be great.",
-  "The difference between ordinary and extraordinary is that little extra.",
-  "It is not the mountain we conquer but ourselves.",
-  "Patience is not simply the ability to wait, it is how we behave while we are waiting.",
-  "Do what you can, with what you have, where you are.",
-  "Difficult roads often lead to beautiful destinations.",
-  "The best way to predict the future is to create it.",
-  "Wherever you go, go with all your heart.",
-  "There is only one thing that makes a dream impossible to achieve: the fear of failure.",
-  "Every strike brings me closer to the next home run.",
-];
-
-const QUOTES_JA = [
-  { text: "石の上にも三年", reading: "いしのうえにもさんねん" },
-  { text: "七転び八起き", reading: "ななころびやおき" },
-  { text: "急がば回れ", reading: "いそがばまわれ" },
-  { text: "塵も積もれば山となる", reading: "ちりもつもればやまとなる" },
-  { text: "光陰矢の如し", reading: "こういんやのごとし" },
-  { text: "継続は力なり", reading: "けいぞくはちからなり" },
-  { text: "初心忘るべからず", reading: "しょしんわするべからず" },
-  { text: "案ずるより産むが易し", reading: "あんずるよりうむがやすし" },
-  { text: "井の中の蛙大海を知らず", reading: "いのなかのかわずたいかいをしらず" },
-  { text: "猿も木から落ちる", reading: "さるもきからおちる" },
-  { text: "花より団子", reading: "はなよりだんご" },
-  { text: "転ばぬ先の杖", reading: "ころばぬさきのつえ" },
-  { text: "石橋を叩いて渡る", reading: "いしばしをたたいてわたる" },
-  { text: "千里の道も一歩から", reading: "せんりのみちもいっぽから" },
-  { text: "三人寄れば文殊の知恵", reading: "さんにんよればもんじゅのちえ" },
-  { text: "早起きは三文の徳", reading: "はやおきはさんもんのとく" },
-  { text: "灯台下暗し", reading: "とうだいもとくらし" },
-  { text: "二兎を追う者は一兎をも得ず", reading: "にとをおうものはいっとをもえず" },
-  { text: "好きこそものの上手なれ", reading: "すきこそもののじょうずなれ" },
-  { text: "温故知新", reading: "おんこちしん" },
-  { text: "一期一会", reading: "いちごいちえ" },
-  { text: "有言実行", reading: "ゆうげんじっこう" },
-  { text: "一石二鳥", reading: "いっせきにちょう" },
-  { text: "十人十色", reading: "じゅうにんといろ" },
-  { text: "因果応報", reading: "いんがおうほう" },
-  { text: "臨機応変", reading: "りんきおうへん" },
-  { text: "起死回生", reading: "きしかいせい" },
-  { text: "大器晩成", reading: "たいきばんせい" },
-  { text: "千載一遇", reading: "せんざいいちぐう" },
-  { text: "明日は明日の風が吹く", reading: "あしたはあしたのかぜがふく" },
-  { text: "雨降って地固まる", reading: "あめふってじかたまる" },
-  { text: "楽あれば苦あり", reading: "らくあればくあり" },
-  { text: "実るほど頭を垂れる稲穂かな", reading: "みのるほどこうべをたれるいなほかな" },
-  { text: "縁の下の力持ち", reading: "えんのしたのちからもち" },
-  { text: "蒔かぬ種は生えぬ", reading: "まかぬたねははえぬ" },
-  { text: "為せば成る", reading: "なせばなる" },
-  { text: "良薬は口に苦し", reading: "りょうやくはくちににがし" },
-  { text: "百聞は一見に如かず", reading: "ひゃくぶんはいっけんにしかず" },
-  { text: "塞翁が馬", reading: "さいおうがうま" },
-  { text: "覆水盆に返らず", reading: "ふくすいぼんにかえらず" },
-  { text: "単刀直入", reading: "たんとうちょくにゅう" },
-  { text: "我田引水", reading: "がでんいんすい" },
-  { text: "一朝一夕", reading: "いっちょういっせき" },
-  { text: "五里霧中", reading: "ごりむちゅう" },
-  { text: "電光石火", reading: "でんこうせっか" },
-  { text: "針小棒大", reading: "しんしょうぼうだい" },
-  { text: "温厚篤実", reading: "おんこうとくじつ" },
-  { text: "首尾一貫", reading: "しゅびいっかん" },
-  { text: "明鏡止水", reading: "めいきょうしすい" },
-  { text: "諸行無常", reading: "しょぎょうむじょう" },
-  { text: "自業自得", reading: "じごうじとく" },
-  { text: "一喜一憂", reading: "いっきいちゆう" },
-  { text: "疑心暗鬼", reading: "ぎしんあんき" },
-  { text: "我武者羅", reading: "がむしゃら" },
-  { text: "順風満帆", reading: "じゅんぷうまんぱん" },
-  { text: "大同小異", reading: "だいどうしょうい" },
-  { text: "適材適所", reading: "てきざいてきしょ" },
-  { text: "切磋琢磨", reading: "せっさたくま" },
-  { text: "用意周到", reading: "よういしゅうとう" },
-  { text: "一長一短", reading: "いっちょういったん" },
-  { text: "半信半疑", reading: "はんしんはんぎ" },
-  { text: "器用貧乏", reading: "きようびんぼう" },
-  { text: "有名無実", reading: "ゆうめいむじつ" },
-  { text: "前代未聞", reading: "ぜんだいみもん" },
-  { text: "泰然自若", reading: "たいぜんじじゃく" },
-  { text: "波乱万丈", reading: "はらんばんじょう" },
-  { text: "一網打尽", reading: "いちもうだじん" },
-  { text: "意気投合", reading: "いきとうごう" },
-  { text: "言語道断", reading: "ごんごどうだん" },
-  { text: "天真爛漫", reading: "てんしんらんまん" },
-  { text: "独立独歩", reading: "どくりつどっぽ" },
-  { text: "質実剛健", reading: "しつじつごうけん" },
-  { text: "抱腹絶倒", reading: "ほうふくぜっとう" },
-  { text: "空前絶後", reading: "くうぜんぜつご" },
-  { text: "巧言令色", reading: "こうげんれいしょく" },
-  { text: "猫に小判", reading: "ねこにこばん" },
-  { text: "馬の耳に念仏", reading: "うまのみみにねんぶつ" },
-  { text: "蛇の道は蛇", reading: "じゃのみちはへび" },
-  { text: "木を見て森を見ず", reading: "きをみてもりをみず" },
-  { text: "三日坊主", reading: "みっかぼうず" },
-  { text: "二階から目薬", reading: "にかいからめぐすり" },
-  { text: "河童の川流れ", reading: "かっぱのかわながれ" },
-  { text: "泣き面に蜂", reading: "なきつらにはち" },
-  { text: "棚からぼた餅", reading: "たなからぼたもち" },
-  { text: "虎の威を借る狐", reading: "とらのいをかるきつね" },
-  { text: "蛙の面に水", reading: "かえるのつらにみず" },
-  { text: "立つ鳥跡を濁さず", reading: "たつとりあとをにごさず" },
-  { text: "出る杭は打たれる", reading: "でるくいはうたれる" },
-  { text: "亀の甲より年の功", reading: "かめのこうよりとしのこう" },
-  { text: "触らぬ神に祟りなし", reading: "さわらぬかみにたたりなし" },
-  { text: "医者の不養生", reading: "いしゃのふようじょう" },
-  { text: "犬も歩けば棒に当たる", reading: "いぬもあるけばぼうにあたる" },
-  { text: "骨折り損のくたびれ儲け", reading: "ほねおりぞんのくたびれもうけ" },
-  { text: "隣の芝生は青い", reading: "となりのしばふはあおい" },
-  { text: "木で鼻をくくる", reading: "きではなをくくる" },
-  { text: "提灯に釣鐘", reading: "ちょうちんにつりがね" },
-  { text: "天は自ら助くる者を助く", reading: "てんはみずからたすくるものをたすく" },
-  { text: "柳の下にいつも泥鰌はいない", reading: "やなぎのしたにいつもどじょうはいない" },
-  { text: "苦しい時の神頼み", reading: "くるしいときのかみだのみ" },
-  { text: "論語読みの論語知らず", reading: "ろんごよみのろんごしらず" },
-  { text: "好機逸すべからず", reading: "こうきいっすべからず" },
-  { text: "一寸先は闇", reading: "いっすんさきはやみ" },
-  { text: "蟻の穴から堤も崩れる", reading: "ありのあなからつつみもくずれる" },
-  { text: "天に唾する", reading: "てんにつばする" },
-  { text: "泥棒を捕らえて縄を綯う", reading: "どろぼうをとらえてなわをなう" },
-  { text: "火のない所に煙は立たぬ", reading: "ひのないところにけむりはたたぬ" },
-  { text: "悪銭身に付かず", reading: "あくせんみにつかず" },
-  { text: "才能は継続に勝てない", reading: "さいのうはけいぞくにかてない" },
-  { text: "努力は必ず報われる", reading: "どりょくはかならずむくわれる" },
-  { text: "笑う門には福来る", reading: "わらうかどにはふくきたる" },
-  { text: "郷に入っては郷に従え", reading: "ごうにいってはごうにしたがえ" },
-  { text: "弘法にも筆の誤り", reading: "こうぼうにもふでのあやまり" },
-  { text: "蛙の子は蛙", reading: "かえるのこはかえる" },
-  { text: "情けは人の為ならず", reading: "なさけはひとのためならず" },
-  { text: "論より証拠", reading: "ろんよりしょうこ" },
-  { text: "蓼食う虫も好き好き", reading: "たでくうむしもすきずき" },
-  { text: "猫の手も借りたい", reading: "ねこのてもかりたい" },
-  { text: "猫に鰹節", reading: "ねこにかつおぶし" },
-  { text: "犬猿の仲", reading: "けんえんのなか" },
-  { text: "馬子にも衣装", reading: "まごにもいしょう" },
-  { text: "舌の根の乾かぬうち", reading: "したのねのかわかぬうち" },
-  { text: "口は災いの元", reading: "くちはわざわいのもと" },
-  { text: "三度目の正直", reading: "さんどめのしょうじき" },
-  { text: "二度あることは三度ある", reading: "にどあることはさんどある" },
-  { text: "待てば海路の日和あり", reading: "まてばかいろのひよりあり" },
-  { text: "明日の百より今日の五十", reading: "あすのひゃくよりきょうのごじゅう" },
-  { text: "急いては事を仕損じる", reading: "せいてはことをしそんじる" },
-  { text: "悪事千里を走る", reading: "あくじせんりをはしる" },
-  { text: "虎穴に入らずんば虎子を得ず", reading: "こけつにいらずんばこじをえず" },
-  { text: "短気は損気", reading: "たんきはそんき" },
-  { text: "時は金なり", reading: "ときはかねなり" },
-  { text: "花に嵐", reading: "はなにあらし" },
-  { text: "憎まれっ子世にはばかる", reading: "にくまれっこよにはばかる" },
-  { text: "女心と秋の空", reading: "おんなごころとあきのそら" },
-  { text: "蛇に見込まれた蛙", reading: "へびにみこまれたかえる" },
-  { text: "鬼に金棒", reading: "おににかなぼう" },
-  { text: "猫をかぶる", reading: "ねこをかぶる" },
-  { text: "豚に真珠", reading: "ぶたにしんじゅ" },
-  { text: "濡れ手で粟", reading: "ぬれてであわ" },
-  { text: "弱り目に祟り目", reading: "よわりめにたたりめ" },
-  { text: "一寸の虫にも五分の魂", reading: "いっすんのむしにもごぶのたましい" },
-  { text: "転んでもただでは起きない", reading: "ころんでもただではおきない" },
-  { text: "火中の栗を拾う", reading: "かちゅうのくりをひろう" },
-  { text: "猫の額", reading: "ねこのひたい" },
-  { text: "雀の涙", reading: "すずめのなみだ" },
-  { text: "蟻の一穴", reading: "ありのいっけつ" },
-  { text: "隣の花は赤い", reading: "となりのはなはあかい" },
-  { text: "一を聞いて十を知る", reading: "いちをきいてじゅうをしる" },
-  { text: "秋茄子は嫁に食わすな", reading: "あきなすはよめにくわすな" },
-  { text: "焼け石に水", reading: "やけいしにみず" },
-  { text: "情けが仇", reading: "なさけがあだ" },
-  { text: "縁は異なもの味なもの", reading: "えんはいなものあじなもの" },
-  { text: "苦は楽の種", reading: "くはらくのたね" },
-  { text: "楽は苦の種", reading: "らくはくのたね" },
-  { text: "出物腫れ物所嫌わず", reading: "でものはれものところきらわず" },
-  { text: "花は桜木人は武士", reading: "はなはさくらぎひとはぶし" },
-  { text: "身から出た錆", reading: "みからでたさび" },
-  { text: "目から鱗が落ちる", reading: "めからうろこがおちる" },
-  { text: "藪から棒", reading: "やぶからぼう" },
-  { text: "我が身をつねって人の痛さを知れ", reading: "わがみをつねってひとのいたさをしれ" },
-  { text: "頭隠して尻隠さず", reading: "あたまかくしてしりかくさず" },
-  { text: "泥棒にも三分の理", reading: "どろぼうにもさんぶのり" },
-  { text: "好きな道には辛労なし", reading: "すきなみちにはしんろうなし" },
-  { text: "一難去ってまた一難", reading: "いちなんさってまたいちなん" },
-  { text: "大は小を兼ねる", reading: "だいはしょうをかねる" },
-  { text: "老いては子に従え", reading: "おいてはこにしたがえ" },
-  { text: "門前の小僧習わぬ経を読む", reading: "もんぜんのこぞうならわぬきょうをよむ" },
-  { text: "名は体を表す", reading: "なはたいをあらわす" },
-  { text: "灯火親しむべし", reading: "とうかしたしむべし" },
-  { text: "三つ子の魂百まで", reading: "みつごのたましいひゃくまで" },
-  { text: "夢を諦めない限り、夢は叶う", reading: "ゆめをあきらめないかぎりゆめはかなう" },
-  { text: "努力に勝る天才はない", reading: "どりょくにまさるてんさいはない" },
-  { text: "今日という日は二度と来ない", reading: "きょうというひはにどとこない" },
-  { text: "失敗は成功のもと", reading: "しっぱいはせいこうのもと" },
-  { text: "挑戦しなければ何も始まらない", reading: "ちょうせんしなければなにもはじまらない" },
-  { text: "人生は自分が思うほど短くない", reading: "じんせいはじぶんがおもうほどみじかくない" },
-  { text: "小さな一歩が大きな未来を作る", reading: "ちいさないっぽがおおきなみらいをつくる" },
-  { text: "変わる勇気を持て", reading: "かわるゆうきをもて" },
-  { text: "昨日の自分を超えていけ", reading: "きのうのじぶんをこえていけ" },
-  { text: "心が変われば行動が変わる", reading: "こころがかわればこうどうがかわる" },
-  { text: "できると信じれば道は開ける", reading: "できるとしんじればみちはひらける" },
-  { text: "一歩ずつでも前へ進め", reading: "いっぽずつでもまえへすすめ" },
-  { text: "才能より継続が大事だ", reading: "さいのうよりけいぞくがだいじだ" },
-  { text: "苦しみの先に成長がある", reading: "くるしみのさきにせいちょうがある" },
-  { text: "準備が成功の半分を決める", reading: "じゅんびがせいこうのはんぶんをきめる" },
-  { text: "感謝の心が幸せを呼ぶ", reading: "かんしゃのこころがしあわせをよぶ" },
-  { text: "笑顔は最高の武器だ", reading: "えがおはさいこうのぶきだ" },
-  { text: "時間は誰にでも平等に流れる", reading: "じかんはだれにでもびょうどうにながれる" },
-  { text: "本気になれば奇跡は起こる", reading: "ほんきになればきせきはおこる" },
-  { text: "迷ったら前に進め", reading: "まよったらまえにすすめ" },
-  { text: "過去は変えられないが未来は変えられる", reading: "かこはかえられないがみらいはかえられる" },
-  { text: "諦めた瞬間に終わりが来る", reading: "あきらめたしゅんかんにおわりがくる" },
-  { text: "一日一日を大切に生きよ", reading: "いちにちいちにちをたいせつにいきよ" },
-  { text: "己を知る者は強い", reading: "おのれをしるものはつよい" },
-  { text: "心の中に太陽を持て", reading: "こころのなかにたいようをもて" },
-  { text: "挑戦する者だけが成長できる", reading: "ちょうせんするものだけがせいちょうできる" },
-  { text: "逆境は人を強くする", reading: "ぎゃっきょうはひとをつよくする" },
-  { text: "夢は逃げない、逃げるのはいつも自分だ", reading: "ゆめはにげないにげるのはいつもじぶんだ" },
-  { text: "明日を変えるのは今日の行動だ", reading: "あすをかえるのはきょうのこうどうだ" },
-  { text: "続けることが才能になる", reading: "つづけることがさいのうになる" },
-  { text: "何事も最初の一歩が難しい", reading: "なにごともさいしょのいっぽがむずかしい" },
-  { text: "自分を信じる者だけが道を切り開く", reading: "じぶんをしんじるものだけがみちをきりひらく" },
-  { text: "失敗を恐れるな、挑戦しないことを恐れよ", reading: "しっぱいをおそれるなちょうせんしないことをおそれよ" },
-  { text: "幸せは日常の中にある", reading: "しあわせはにちじょうのなかにある" },
-  { text: "学ぶことに遅すぎることはない", reading: "まなぶことにおそすぎることはない" },
-  { text: "心が折れなければ道は続く", reading: "こころがおれなければみちはつづく" },
-  { text: "大きな夢は小さな行動から生まれる", reading: "おおきなゆめはちいさなこうどうからうまれる" },
-  { text: "人は変われる、いつからでも", reading: "ひとはかわれるいつからでも" },
-  { text: "目標がある人生は輝く", reading: "もくひょうがあるじんせいはかがやく" },
-  { text: "一番の敵は自分自身だ", reading: "いちばんのてきはじぶんじしんだ" },
-  { text: "継続は自信を生む", reading: "けいぞくはじしんをうむ" },
-  { text: "苦労を知る人ほど優しくなれる", reading: "くろうをしるひとほどやさしくなれる" },
-  { text: "未来は今この瞬間から始まる", reading: "みらいはいまこのしゅんかんからはじまる" },
-  { text: "迷いは行動で消える", reading: "まよいはこうどうできえる" },
-  { text: "人生に無駄な経験はない", reading: "じんせいにむだなけいけんはない" },
-  { text: "強さとは何度倒れても立ち上がることだ", reading: "つよさとはなんどたおれてもたちあがることだ" },
-  { text: "勇気とは恐れないことではなく、恐れても進むことだ", reading: "ゆうきとはおそれないことではなくおそれてもすすむことだ" },
-  { text: "変化を恐れる者に進歩はない", reading: "へんかをおそれるものにしんぽはない" },
-  { text: "情熱は困難を乗り越える力になる", reading: "じょうねつはこんなんをのりこえるちからになる" },
-  { text: "どんな暗闇にも必ず夜明けが来る", reading: "どんなくらやみにもかならずよあけがくる" },
-  { text: "小さな親切が世界を変える", reading: "ちいさなしんせつがせかいをかえる" },
-  { text: "感謝を忘れた時、成長も止まる", reading: "かんしゃをわすれたときせいちょうもとまる" },
-  { text: "本当の強さは優しさから生まれる", reading: "ほんとうのつよさはやさしさからうまれる" },
-  { text: "自分の限界を決めるのは自分だけだ", reading: "じぶんのげんかいをきめるのはじぶんだけだ" },
-  { text: "努力する姿はそれだけで美しい", reading: "どりょくするすがたはそれだけでうつくしい" },
-  { text: "今できることに全力を尽くせ", reading: "いまできることにぜんりょくをつくせ" },
-  { text: "挑戦した者だけが後悔しない", reading: "ちょうせんしたものだけがこうかいしない" },
-  { text: "心の豊かさは持ち物では測れない", reading: "こころのゆたかさはもちものでははかれない" },
-  { text: "過去に縛られず未来を見つめよ", reading: "かこにしばられずみらいをみつめよ" },
-  { text: "人との出会いが人生を変える", reading: "ひととのであいがじんせいをかえる" },
-  { text: "一つの言葉が誰かを救うことがある", reading: "ひとつのことばがだれかをすくうことがある" },
-  { text: "努力は自分自身への最高の投資だ", reading: "どりょくはじぶんじしんへのさいこうのとうしだ" },
-  { text: "弱さを認めることも強さの一つだ", reading: "よわさをみとめることもつよさのひとつだ" },
-  { text: "目の前のことに集中せよ", reading: "めのまえのことにしゅうちゅうせよ" },
-  { text: "成功への道に近道はない", reading: "せいこうへのみちにちかみちはない" },
-  { text: "何度失敗しても立ち上がればいい", reading: "なんどしっぱいしてもたちあがればいい" },
-  { text: "心配するより行動せよ", reading: "しんぱいするよりこうどうせよ" },
-  { text: "人生は挑戦の連続だ", reading: "じんせいはちょうせんのれんぞくだ" },
-  { text: "自分の歩幅で進めばいい", reading: "じぶんのほはばですすめばいい" },
-  { text: "諦めなければ必ず道は見つかる", reading: "あきらめなければかならずみちはみつかる" },
-  { text: "積み重ねた努力は裏切らない", reading: "つみかさねたどりょくはうらぎらない" },
-  { text: "心に余裕を持てば景色が変わる", reading: "こころによゆうをもてばけしきがかわる" },
-  { text: "できないと思った時点で可能性は消える", reading: "できないとおもったじてんでかのうせいはきえる" },
-  { text: "一日の終わりに感謝を数えよ", reading: "いちにちのおわりにかんしゃをかぞえよ" },
-  { text: "迷った時こそ初心に戻れ", reading: "まよったときこそしょしんにもどれ" },
-  { text: "自分を変えれば世界も変わる", reading: "じぶんをかえればせかいもかわる" },
-  { text: "失った時間は二度と戻らない", reading: "うしなったじかんはにどともどらない" },
-  { text: "挑む心を忘れるな", reading: "いどむこころをわすれるな" },
-  { text: "幸福は求めるものではなく気づくものだ", reading: "こうふくはもとめるものではなくきづくものだ" },
-  { text: "一生懸命な姿は人の心を動かす", reading: "いっしょうけんめいなすがたはひとのこころをうごかす" },
-  { text: "涙の数だけ人は強くなれる", reading: "なみだのかずだけひとはつよくなれる" },
-  { text: "誰かのために生きる人は美しい", reading: "だれかのためにいきるひとはうつくしい" },
-  { text: "心の傷も時が癒してくれる", reading: "こころのきずもときがいやしてくれる" },
-  { text: "大切なものほど失って気づく", reading: "たいせつなものほどうしなってきづく" },
-  { text: "続けた者だけが景色を変えられる", reading: "つづけたものだけがけしきをかえられる" },
-  { text: "苦しい時こそ笑ってみよう", reading: "くるしいときこそわらってみよう" },
-  { text: "できることから始めよう", reading: "できることからはじめよう" },
-  { text: "全力を出し切った者に後悔はない", reading: "ぜんりょくをだしきったものにこうかいはない" },
-  { text: "人生には終わりのない挑戦がある", reading: "じんせいにはおわりのないちょうせんがある" },
-  { text: "信じる心が奇跡を生む", reading: "しんじるこころがきせきをうむ" },
-  { text: "花は咲く時を選ばない", reading: "はなはさくときをえらばない" },
-  { text: "人は誰でも輝く場所を持っている", reading: "ひとはだれでもかがやくばしょをもっている" },
-  { text: "明るい未来は自分の手で作るものだ", reading: "あかるいみらいはじぶんのてでつくるものだ" },
-  { text: "頑張る君を誰かが見ている", reading: "がんばるきみをだれかがみている" },
-  { text: "種をまかなければ花は咲かない", reading: "たねをまかなければはなはさかない" },
-  { text: "静かな努力が大きな結果を生む", reading: "しずかなどりょくがおおきなけっかをうむ" },
-  { text: "心の声に耳を傾けよ", reading: "こころのこえにみみをかたむけよ" },
-  { text: "自分の道は自分で切り開け", reading: "じぶんのみちはじぶんできりひらけ" },
-  { text: "一歩踏み出す勇気が未来を変える", reading: "いっぽふみだすゆうきがみらいをかえる" },
-  { text: "過ちを認める強さを持て", reading: "あやまちをみとめるつよさをもて" },
-  { text: "人生は選択の積み重ねだ", reading: "じんせいはせんたくのつみかさねだ" },
-  { text: "弱音を吐いてもいい、諦めなければ", reading: "よわねをはいてもいいあきらめなければ" },
-  { text: "努力する君はもう十分立派だ", reading: "どりょくするきみはもうじゅうぶんりっぱだ" },
-  { text: "昨日より今日、今日より明日", reading: "きのうよりきょうきょうよりあす" },
-  { text: "目標を紙に書けば夢は近づく", reading: "もくひょうをかみにかけばゆめはちかづく" },
-  { text: "挫折は成長の一部だ", reading: "ざせつはせいちょうのいちぶだ" },
-  { text: "心を込めた仕事は必ず伝わる", reading: "こころをこめたしごとはかならずつたわる" },
-  { text: "誰かの一言が人生を変えることもある", reading: "だれかのひとことがじんせいをかえることもある" },
-  { text: "未来を恐れず今を生きよ", reading: "みらいをおそれずいまをいきよ" },
-  { text: "見えない努力が本物の力になる", reading: "みえないどりょくがほんもののちからになる" },
-  { text: "一度きりの人生を楽しめ", reading: "いちどきりのじんせいをたのしめ" },
-  { text: "心の中の炎を消すな", reading: "こころのなかのほのおをけすな" },
-  { text: "人の痛みが分かる人は強い", reading: "ひとのいたみがわかるひとはつよい" },
-  { text: "変わらない日常の中にも幸せはある", reading: "かわらないにちじょうのなかにもしあわせはある" },
-  { text: "遠回りも人生の一部だ", reading: "とおまわりもじんせいのいちぶだ" },
-  { text: "諦めの言葉より挑戦の言葉を選べ", reading: "あきらめのことばよりちょうせんのことばをえらべ" },
-  { text: "誰よりも自分を信じよ", reading: "だれよりもじぶんをしんじよ" },
-  { text: "積み上げた時間は嘘をつかない", reading: "つみあげたじかんはうそをつかない" },
-  { text: "一瞬の努力より一生の継続だ", reading: "いっしゅんのどりょくよりいっしょうのけいぞくだ" },
-  { text: "小さな成功を積み重ねよ", reading: "ちいさなせいこうをつみかさねよ" },
-  { text: "心の余白が優しさを生む", reading: "こころのよはくがやさしさをうむ" },
-  { text: "悔いのない一日を過ごせ", reading: "くいのないいちにちをすごせ" },
-  { text: "自分らしさを大切にせよ", reading: "じぶんらしさをたいせつにせよ" },
-  { text: "苦しさの向こうに光がある", reading: "くるしさのむこうにひかりがある" },
-  { text: "人生に無駄な回り道はない", reading: "じんせいにむだなまわりみちはない" },
-  { text: "挑戦する心を失うな", reading: "ちょうせんするこころをうしなうな" },
-  { text: "今日の努力が明日の自信になる", reading: "きょうのどりょくがあすのじしんになる" },
-  { text: "何度でも立ち上がればいい", reading: "なんどでもたちあがればいい" },
-  { text: "心が折れそうな時ほど深呼吸せよ", reading: "こころがおれそうなときほどしんこきゅうせよ" },
-  { text: "過去を悔やむより今を生きよ", reading: "かこをくやむよりいまをいきよ" },
-  { text: "人は支え合って生きている", reading: "ひとはささえあっていきている" },
-  { text: "自分に厳しく人に優しく", reading: "じぶんにきびしくひとにやさしく" },
-  { text: "小さな勇気が大きな変化を生む", reading: "ちいさなゆうきがおおきなへんかをうむ" },
-  { text: "涙を流した分だけ人は優しくなる", reading: "なみだをながしたぶんだけひとはやさしくなる" },
-  { text: "一つの失敗が全てを決めるわけではない", reading: "ひとつのしっぱいがすべてをきめるわけではない" },
-  { text: "心に太陽を、唇に歌を", reading: "こころにたいようをくちびるにうたを" },
-  { text: "諦めなければ夢はいつか叶う", reading: "あきらめなければゆめはいつかかなう" },
-  { text: "誰かのために頑張れる人は強い", reading: "だれかのためにがんばれるひとはつよい" },
-  { text: "迷いながらでも前に進めばいい", reading: "まよいながらでもまえにすすめばいい" },
-  { text: "努力した過程こそが財産だ", reading: "どりょくしたかていこそがざいさんだ" },
-  { text: "心の準備ができれば道は開く", reading: "こころのじゅんびができればみちはひらく" },
-  { text: "一日一善を心がけよ", reading: "いちにちいちぜんをこころがけよ" },
-  { text: "人生は自分で描く一枚の絵だ", reading: "じんせいはじぶんでえがくいちまいのえだ" },
-  { text: "変わり続けることこそ成長だ", reading: "かわりつづけることこそせいちょうだ" },
-  { text: "苦しみを乗り越えた先に本当の喜びがある", reading: "くるしみをのりこえたさきにほんとうのよろこびがある" },
-  { text: "自分の弱さを知る者ほど強くなれる", reading: "じぶんのよわさをしるものほどつよくなれる" },
-  { text: "今日という一日を大切に生きよ", reading: "きょうといういちにちをたいせつにいきよ" },
-  { text: "未来は自分の手で切り開くものだ", reading: "みらいはじぶんのてできりひらくものだ" },
-  { text: "挑戦し続ける限り青春は終わらない", reading: "ちょうせんしつづけるかぎりせいしゅんはおわらない" },
-  { text: "蟹は甲羅に似せて穴を掘る", reading: "かにはこうらににせてあなをほる", note: "意味: 人は自分の身分や能力にふさわしい考えや行動をするものだということ" },
-  { text: "猿に烏帽子", reading: "さるにえぼし", note: "意味: 人柄に似合わない服装や地位のたとえ" },
-  { text: "鶴は千年亀は万年", reading: "つるはせんねんかめはまんねん", note: "意味: 長寿でめでたいことのたとえ" },
-  { text: "虎に翼", reading: "とらにつばさ", note: "意味: 強い者にさらに強さが加わることのたとえ" },
-  { text: "蝙蝠も鳥のうち", reading: "こうもりもとりのうち", note: "意味: つまらない者でも仲間の数に入ることがあるたとえ" },
-  { text: "鴨が葱を背負って来る", reading: "かもがねぎをしょってくる", note: "意味: 好都合なことが重なって起こることのたとえ" },
-  { text: "蛇足", reading: "だそく", note: "意味: 余計な付け足しのこと" },
-  { text: "蟻の思いも天に届く", reading: "ありのおもいもてんにとどく", note: "意味: 微力な者でも一心に努力すれば願いは叶うということ" },
-  { text: "猫も杓子も", reading: "ねこもしゃくしも", note: "意味: 誰も彼もこぞって、なんでもかんでもということ" },
-  { text: "犬に論語", reading: "いぬにろんご", note: "意味: どんなに道理を説いても無駄であることのたとえ" },
-  { text: "豚も煽てりゃ木に登る", reading: "ぶたもおだてりゃきにのぼる", note: "意味: おだてれば誰でもその気になって物事を行うということ" },
-  { text: "河豚は食いたし命は惜しし", reading: "ふぐはくいたしいのちはおしし", note: "意味: 欲しいものはあるが危険を冒すのはためらわれるという心情" },
-  { text: "海老で鯛を釣る", reading: "えびでたいをつる", note: "意味: わずかな元手で大きな利益を得ることのたとえ" },
-  { text: "鯛の尾より鰯の頭", reading: "たいのおよりいわしのあたま", note: "意味: 大きな組織の末端にいるより小さな組織でも頭でいるほうがよいということ" },
-  { text: "腐っても鯛", reading: "くさってもたい", note: "意味: 本当に価値のあるものは状態が悪くなってもそれなりの値打ちを保っているということ" },
-  { text: "魚心あれば水心", reading: "うおごころあればみずごころ", note: "意味: 相手が好意を持てば自分も好意を持って応じようという気になるということ" },
-  { text: "溺れる者は藁をも掴む", reading: "おぼれるものはわらをもつかむ", note: "意味: 困り果てると頼りにならないものにまで頼ろうとすることのたとえ" },
-  { text: "大魚は小池に棲まず", reading: "たいぎょはしょうちにすまず", note: "意味: 大人物は小さな場所には満足しないというたとえ" },
-  { text: "竜頭蛇尾", reading: "りゅうとうだび", note: "意味: 始めは勢いが盛んだが終わりは振るわないこと" },
-  { text: "蛇の生殺し", reading: "へびのなまごろし", note: "意味: 物事に決着をつけず中途半端な状態にしておくこと" },
-  { text: "雉も鳴かずば撃たれまい", reading: "きじもなかずばうたれまい", note: "意味: 余計なことを言わなければ災いを招かずに済むということ" },
-  { text: "能ある鷹は爪を隠す", reading: "のうあるたかはつめをかくす", note: "意味: 実力のある者はむやみにそれを誇示しないということ" },
-  { text: "鳶が鷹を生む", reading: "とびがたかをうむ", note: "意味: 平凡な親から優れた子が生まれることのたとえ" },
-  { text: "雀百まで踊り忘れず", reading: "すずめひゃくまでおどりわすれず", note: "意味: 若い時に身についた習慣は年をとっても直らないということ" },
-  { text: "石が流れて木の葉が沈む", reading: "いしがながれてこのはがしずむ", note: "意味: 道理が逆転していて物事があべこべであることのたとえ" },
-  { text: "好事魔多し", reading: "こうじまおおし", note: "意味: 良いことには邪魔が入りやすいということ" },
-  { text: "禍福は糾える縄の如し", reading: "かふくはあざなえるなわのごとし", note: "意味: 幸福と不幸は縄をより合わせたように交互に訪れるということ" },
-  { text: "一寸の光陰軽んずべからず", reading: "いっすんのこういんかろんずべからず", note: "意味: わずかな時間も無駄にしてはいけないという教え" },
-  { text: "歳月人を待たず", reading: "さいげつひとをまたず", note: "意味: 月日は人の都合とは関係なく過ぎ去っていくということ" },
-  { text: "会うは別れの始め", reading: "あうはわかれのはじめ", note: "意味: 出会った者はいつか必ず別れる運命にあるということ" },
-  { text: "袖振り合うも多生の縁", reading: "そでふりあうもたしょうのえん", note: "意味: ちょっとした出会いも前世からの深い因縁によるものだということ" },
-  { text: "恩を仇で返す", reading: "おんをあだでかえす", note: "意味: 受けた恩に対して逆に害を与えること" },
-  { text: "立つ瀬がない", reading: "たつせがない", note: "意味: 面目を失いその場に居づらいこと" },
-  { text: "顔から火が出る", reading: "かおからひがでる", note: "意味: 恥ずかしさで顔が赤くなるほど気まずいこと" },
-  { text: "舌を巻く", reading: "したをまく", note: "意味: 非常に驚き感心すること" },
-  { text: "耳が痛い", reading: "みみがいたい", note: "意味: 自分の弱点を指摘されてつらいこと" },
-  { text: "耳を疑う", reading: "みみをうたがう", note: "意味: 聞いたことが信じられないほど意外であること" },
-  { text: "口が滑る", reading: "くちがすべる", note: "意味: 言ってはいけないことをうっかり言ってしまうこと" },
-  { text: "口が重い", reading: "くちがおもい", note: "意味: 口数が少なくあまり話さない性格のこと" },
-  { text: "舌が回る", reading: "したがまわる", note: "意味: よどみなくすらすらと話すこと" },
-  { text: "手も足も出ない", reading: "てもあしもでない", note: "意味: 自分の力ではどうにもできない状態のこと" },
-  { text: "手に汗を握る", reading: "てにあせをにぎる", note: "意味: 緊迫した場面で興奮したり緊張したりすること" },
-  { text: "腹が黒い", reading: "はらがくろい", note: "意味: 心の中に悪意を隠していること" },
-  { text: "腹を割って話す", reading: "はらをわってはなす", note: "意味: 本心を隠さずに打ち明けて話すこと" },
-  { text: "肩を落とす", reading: "かたをおとす", note: "意味: 気力を失いがっかりすること" },
-  { text: "骨が折れる", reading: "ほねがおれる", note: "意味: 物事をするのに非常に苦労すること" },
-  { text: "骨身を惜しまず", reading: "ほねみをおしまず", note: "意味: 苦労をいとわず一生懸命働くこと" },
-  { text: "身を粉にする", reading: "みをこにする", note: "意味: 労力を惜しまず一生懸命働くこと" },
-  { text: "手塩にかける", reading: "てしおにかける", note: "意味: 自分で世話をして大切に育てること" },
-  { text: "一肌脱ぐ", reading: "ひとはだぬぐ", note: "意味: 人のために本気になって力を貸すこと" },
-  { text: "頭が上がらない", reading: "あたまがあがらない", note: "意味: 相手に負い目があって対等な立場に立てないこと" },
-  { text: "顔が広い", reading: "かおがひろい", note: "意味: 知り合いが多く社会的なつながりが豊富なこと" },
-  { text: "顔に泥を塗る", reading: "かおにどろをぬる", note: "意味: 相手の名誉を傷つけ恥をかかせること" },
-  { text: "板挟みになる", reading: "いたばさみになる", note: "意味: 対立する二つの間に立って苦しい立場になること" },
-  { text: "猫の目のように変わる", reading: "ねこのめのようにかわる", note: "意味: 物事が非常に変わりやすいことのたとえ" },
-  { text: "水と油", reading: "みずとあぶら", note: "意味: 性質が違っていて互いに溶け合わないもののたとえ" },
-  { text: "氷炭相容れず", reading: "ひょうたんあいいれず", note: "意味: 性質が正反対で調和しないことのたとえ" },
-  { text: "上手の手から水が漏る", reading: "じょうずのてからみずがもる", note: "意味: どんな名人でも時には失敗することがあるということ" },
-  { text: "千慮の一失", reading: "せんりょのいっしつ", note: "意味: 賢い人でも多くの考えの中には一つくらい失敗があるということ" },
-  { text: "踏んだり蹴ったり", reading: "ふんだりけったり", note: "意味: 続けて酷い目に遭うこと" },
-  { text: "油断大敵", reading: "ゆだんたいてき", note: "意味: 油断は失敗のもとであり最も恐ろしい敵であるという戒め" },
-  { text: "備えあれば憂いなし", reading: "そなえあればうれいなし", note: "意味: 普段から準備をしておけばいざという時に心配がないということ" },
-  { text: "危ない橋を渡る", reading: "あぶないはしをわたる", note: "意味: 危険を承知のうえで物事を行うこと" },
-  { text: "君子危うきに近寄らず", reading: "くんしあやうきにちかよらず", note: "意味: 教養と徳のある人は自らすすんで危険なことをしないということ" },
-  { text: "寝た子を起こす", reading: "ねたこをおこす", note: "意味: 収まっている物事にわざわざ手を出して問題を再燃させること" },
-  { text: "藪をつついて蛇を出す", reading: "やぶをつついてへびをだす", note: "意味: 余計なことをして自ら災いを招くこと" },
-  { text: "寝耳に水", reading: "ねみみにみず", note: "意味: 突然の出来事に非常に驚くこと" },
-  { text: "青天の霹靂", reading: "せいてんのへきれき", note: "意味: 突然起こる思いがけない大事件のたとえ" },
-  { text: "明日は我が身", reading: "あすはわがみ", note: "意味: 他人の不幸も自分の身に起こるかもしれないということ" },
-  { text: "人の振り見て我が振り直せ", reading: "ひとのふりみてわがふりなおせ", note: "意味: 他人の行いを見て自分の行いを反省し改めるべきだという教え" },
-  { text: "他山の石", reading: "たざんのいし", note: "意味: 他人のつまらない言行も自分の修養の助けになるということ" },
-  { text: "反面教師", reading: "はんめんきょうし", note: "意味: 悪い見本として、かえって教訓を与える存在" },
-  { text: "隗より始めよ", reading: "かいよりはじめよ", note: "意味: 大事を成すにはまず手近なことから着手せよという教え" },
-  { text: "一念岩をも通す", reading: "いちねんいわをもとおす", note: "意味: 強い意志を持って行えばどんな困難も成し遂げられるということ" },
-  { text: "石に立つ矢", reading: "いしにたつや", note: "意味: 一心に努力すればどんな難事も成し遂げられるということ" },
-  { text: "精神一到何事か成らざらん", reading: "せいしんいっとうなにごとかならざらん", note: "意味: 精神を集中して行えば成し遂げられないことはないという教え" },
-  { text: "雨だれ石を穿つ", reading: "あまだれいしをうがつ", note: "意味: 小さな努力でも根気よく続ければ大きな成果を得られるということ" },
-  { text: "好機は二度と来ない", reading: "こうきはにどとこない", note: "意味: チャンスは二度と巡ってこないから逃してはいけないという教え" },
-  { text: "鉄は熱いうちに打て", reading: "てつはあついうちにうて", note: "意味: 物事は好機を逃さず時機を得て行うべきだという教え" },
-  { text: "思い立ったが吉日", reading: "おもいたったがきちじつ", note: "意味: 何かをしようと思い立ったらすぐに実行するのがよいということ" },
-  { text: "善は急げ", reading: "ぜんはいそげ", note: "意味: 良いと思ったことはためらわずすぐに実行せよという教え" },
-  { text: "木に縁りて魚を求む", reading: "きによりてうおをもとむ", note: "意味: 方法を誤ると目的を達成できないことのたとえ" },
-  { text: "画竜点睛を欠く", reading: "がりょうてんせいをかく", note: "意味: 物事の最後の仕上げが不十分で全体が引き立たないこと" },
-  { text: "大山鳴動して鼠一匹", reading: "たいざんめいどうしてねずみいっぴき", note: "意味: 大騒ぎした割に結果がとても小さいことのたとえ" },
-  { text: "羹に懲りて膾を吹く", reading: "あつものにこりてなますをふく", note: "意味: 一度の失敗に懲りて必要以上に用心深くなることのたとえ" },
-  { text: "前車の轍を踏む", reading: "ぜんしゃのてつをふむ", note: "意味: 前の人と同じ失敗を繰り返すことのたとえ" },
-  { text: "蟷螂の斧", reading: "とうろうのおの", note: "意味: 弱者が自分の力量を顧みず強者に立ち向かうことのたとえ" },
-  { text: "呉越同舟", reading: "ごえつどうしゅう", note: "意味: 仲の悪い者同士が同じ場所や境遇に居合わせること" },
-  { text: "漁夫の利", reading: "ぎょふのり", note: "意味: 両者が争っている隙に第三者が利益を横取りすること" },
-  { text: "杞憂", reading: "きゆう", note: "意味: 将来のことについて余計な心配をすること" },
-  { text: "矛盾", reading: "むじゅん", note: "意味: 話や物事のつじつまが合わないこと" },
-  { text: "五十歩百歩", reading: "ごじっぽひゃっぽ", note: "意味: 少しの違いはあっても本質的には同じであることのたとえ" },
-  { text: "完璧", reading: "かんぺき", note: "意味: 欠点が全くなく完全であること" },
-  { text: "四面楚歌", reading: "しめんそか", note: "意味: 周囲を敵に囲まれて孤立無援であること" },
-  { text: "背水の陣", reading: "はいすいのじん", note: "意味: 逃げ場をなくして必死の覚悟で事にあたること" },
-  { text: "臥薪嘗胆", reading: "がしんしょうたん", note: "意味: 目的を達成するために苦労を重ね我慢すること" },
-  { text: "蛍雪の功", reading: "けいせつのこう", note: "意味: 苦労して勉学に励んだ成果" },
-  { text: "三顧の礼", reading: "さんこのれい", note: "意味: 目上の人が礼を尽くして人材を招くこと" },
-  { text: "水魚の交わり", reading: "すいぎょのまじわり", note: "意味: 極めて親密で切っても切れない関係のたとえ" },
-  { text: "断腸の思い", reading: "だんちょうのおもい", note: "意味: 腸がちぎれるほどのつらく悲しい思い" },
-  { text: "杜撰", reading: "ずさん", note: "意味: 物事のやり方がいい加減で誤りが多いこと" },
-  { text: "推敲", reading: "すいこう", note: "意味: 詩や文章の字句を何度も練り直すこと" },
-  { text: "玉磨かざれば光なし", reading: "たまみがかざればひかりなし", note: "意味: どんなに素質があっても学び磨かなければ立派にはならないという教え" },
-  { text: "学問に王道なし", reading: "がくもんにおうどうなし", note: "意味: 学問を修めるのに簡単な近道はないということ" },
-  { text: "千里の馬も一日にしては至らず", reading: "せんりのうまもいちにちにしてはいたらず", note: "意味: 大事業も着実な努力を積み重ねなければ成し遂げられないということ" },
-  { text: "桃李物言わざれど下自ら蹊を成す", reading: "とうりものいわざれどしたおのずからみちをなす", note: "意味: 徳のある人は自然と人が慕い集まるということ" },
-  { text: "忠言耳に逆らう", reading: "ちゅうげんみみにさからう", note: "意味: 自分のためになる忠告ほど素直に聞き入れがたいものだということ" },
-  { text: "吾輩は猫である。名前はまだない。", reading: "わがはいはねこであるなまえはまだない", note: "夏目漱石『吾輩は猫である』" },
-  { text: "智に働けば角が立つ、情に棹させば流される、意地を通せば窮屈だ。とかくに人の世は住みにくい。", reading: "ちにはたらけばかどがたつじょうにさおさせばながされるいじをとおせばきゅうくつだとかくにひとのよはすみにくい", note: "夏目漱石『草枕』" },
-  { text: "私はその人を常に先生と呼んでいた。", reading: "わたしはそのひとをつねにせんせいとよんでいた", note: "夏目漱石『こころ』" },
-  { text: "親譲りの無鉄砲で子供の時から損ばかりしている。", reading: "おやゆずりのむてっぽうでこどものときからそんばかりしている", note: "夏目漱石『坊っちゃん』" },
-  { text: "恥の多い生涯を送って来ました。", reading: "はじのおおいしょうがいをおくってきました", note: "太宰治『人間失格』" },
-  { text: "自分には、人間の生活というものが、見当つかないのです。", reading: "じぶんにはにんげんのせいかつというものがけんとうつかないのです", note: "太宰治『人間失格』" },
-  { text: "恋と革命のために生れて来た。", reading: "こいとかくめいのためにうまれてきた", note: "太宰治『斜陽』" },
-  { text: "メロスは激怒した。", reading: "めろすはげきどした", note: "太宰治『走れメロス』" },
-  { text: "雨にも負けず風にも負けず", reading: "あめにもまけずかぜにもまけず", note: "宮沢賢治『雨ニモマケズ』" },
-  { text: "ほんとうのさいわいは一体何だろう", reading: "ほんとうのさいわいはいったいなんだろう", note: "宮沢賢治『銀河鉄道の夜』(ジョバンニ)" },
-  { text: "世界がぜんたい幸福にならないうちは個人の幸福はあり得ない", reading: "せかいがぜんたいこうふくにならないうちはこじんのこうふくはありえない", note: "宮沢賢治『農民芸術概論綱要』" },
-  { text: "下人の行方は、誰も知らない。", reading: "げにんのゆくえはだれもしらない", note: "芥川龍之介『羅生門』" },
-  { text: "蜘蛛の糸はぷつりと切れました。", reading: "くものいとはぷつりときれました", note: "芥川龍之介『蜘蛛の糸』" },
-  { text: "臆病な自尊心と尊大な羞恥心", reading: "おくびょうなじそんしんとそんだいなしゅうちしん", note: "中島敦『山月記』" },
-  { text: "国境の長いトンネルを抜けると雪国であった。", reading: "こっきょうのながいとんねるをぬけるとゆきぐにであった", note: "川端康成『雪国』" },
-  { text: "はたらけどはたらけど猶わが生活楽にならざりぢっと手を見る", reading: "はたらけどはたらけどなおわがくらしらくにならざりじっとてをみる", note: "石川啄木『一握の砂』" },
-  { text: "分け入っても分け入っても青い山", reading: "わけいってもわけいってもあおいやま", note: "種田山頭火" },
-  { text: "高瀬舟は京都の高瀬川を上下する小舟である。", reading: "たかせぶねはきょうとのたかせがわをじょうげするこぶねである", note: "森鷗外『高瀬舟』" },
-  { text: "為せば成る為さねば成らぬ何事も成らぬは人の為さぬなりけり", reading: "なせばなるなさねばならぬなにごともならぬはひとのなさぬなりけり", note: "上杉鷹山" },
-  { text: "世の人は我を何とも言わば言え我がなすことは我のみぞ知る", reading: "よのひとはわれをなんともいわばいえわがなすことはわれのみぞしる", note: "坂本龍馬" },
-  { text: "至誠にして動かざる者は未だこれあらざるなり", reading: "しせいにしてうごかざるものはいまだこれあらざるなり", note: "吉田松陰" },
-  { text: "天は人の上に人を造らず人の下に人を造らずと言えり", reading: "てんはひとのうえにひとをつくらずひとのしたにひとをつくらずといえり", note: "福沢諭吉『学問のすゝめ』" },
-  { text: "千日の稽古を鍛とし、万日の稽古を練とす", reading: "せんにちのけいこをたんとしまんにちのけいこをれんとす", note: "宮本武蔵『五輪書』" },
-  { text: "人の一生は重荷を負うて遠き道を行くが如し", reading: "ひとのいっしょうはおもにをおうてとおきみちをいくがごとし", note: "徳川家康" },
-  { text: "人間五十年、下天のうちを比ぶれば、夢幻の如くなり", reading: "にんげんごじゅうねんげてんのうちをくらぶればゆめまぼろしのごとくなり", note: "織田信長(敦盛)" },
-  { text: "人は城人は石垣人は堀情けは味方仇は敵なり", reading: "ひとはしろひとはいしがきひとはほりなさけはみかたあだはてきなり", note: "武田信玄" },
-  { text: "雨が降れば傘をさす、それでいいじゃないか", reading: "あめがふればかさをさすそれでいいじゃないか", note: "松下幸之助" },
-  { text: "誰にも負けない努力をする", reading: "だれにもまけないどりょくをする", note: "稲盛和夫" },
-  { text: "論語と算盤は一致すべきものである", reading: "ろんごとそろばんはいっちすべきものである", note: "渋沢栄一『論語と算盤』" },
-  { text: "古池や蛙飛び込む水の音", reading: "ふるいけやかわずとびこむみずのおと", note: "松尾芭蕉" },
-  { text: "旅に病んで夢は枯野をかけ廻る", reading: "たびにやんでゆめはかれのをかけめぐる", note: "松尾芭蕉" },
-  { text: "散る桜残る桜も散る桜", reading: "ちるさくらのこるさくらもちるさくら", note: "良寛" },
-  { text: "芸術は爆発だ", reading: "げいじゅつはばくはつだ", note: "岡本太郎" },
-  { text: "誰かがやらねばならぬ、私がやらねば誰がやる", reading: "だれかがやらねばならぬわたしがやらねばだれがやる", note: "野口英世" },
-  { text: "小さいことを積み重ねるのが、とんでもないところに行くただひとつの道だと思っている", reading: "ちいさいことをつみかさねるのがとんでもないところにいくただひとつのみちだとおもっている", note: "イチロー" },
-  { text: "努力は必ず報われる。もし報われない努力があるのならば、それはまだ努力と呼べない", reading: "どりょくはかならずむくわれるもしむくわれないどりょくがあるのならばそれはまだどりょくとよべない", note: "王貞治" },
-  { text: "才能とは、継続できる情熱である", reading: "さいのうとはけいぞくできるじょうねつである", note: "羽生善治" },
-  { text: "過ちて改めざる、是を過ちという", reading: "あやまちてあらためざるこれをあやまちという", note: "孔子『論語』" },
-  { text: "己の欲せざる所は人に施すことなかれ", reading: "おのれのほっせざるところはひとにほどこすことなかれ", note: "孔子『論語』" },
-  { text: "三人行えば必ず我が師あり", reading: "さんにんおこなえばかならずわがしあり", note: "孔子『論語』" },
-  { text: "学びて時にこれを習う、亦説ばしからずや", reading: "まなびてときにこれをならうまたよろこばしからずや", note: "孔子『論語』" },
-  { text: "十有五にして学に志す", reading: "じゅうゆうごにしてがくにこころざす", note: "孔子『論語』" },
-  { text: "天の時は地の利に如かず、地の利は人の和に如かず", reading: "てんのときはちのりにしかずちのりはひとのわにしかず", note: "孟子" },
-  { text: "道徳を忘れた経済は罪悪である", reading: "どうとくをわすれたけいざいはざいあくである", note: "二宮尊徳" },
-  { text: "敬天愛人", reading: "けいてんあいじん", note: "西郷隆盛" },
-  { text: "世間が許さないのではない、あなたが許さないのでしょう", reading: "せけんがゆるさないのではないあなたがゆるさないのでしょう", note: "太宰治『人間失格』" },
-  { text: "ここからはじめましょう。一から、いいえ、ゼロから。", reading: "ここからはじめましょういちからいいえぜろから", note: "Re:ゼロから始める異世界生活" },
-  { text: "河童に水練", reading: "かっぱにすいれん", note: "意味: 知り尽くしている人にその道のことを教える愚かさのたとえ" },
-  { text: "釈迦に説法", reading: "しゃかにせっぽう", note: "意味: その道をよく知っている人に対して教えを説く愚かさのたとえ" },
-  { text: "馬耳東風", reading: "ばじとうふう", note: "意味: 人の意見や忠告を心にとめず聞き流すこと" },
-  { text: "対岸の火事", reading: "たいがんのかじ", note: "意味: 自分には関係がなく痛痒を感じないことのたとえ" },
-  { text: "高みの見物", reading: "たかみのけんぶつ", note: "意味: 自分は関係ない立場から物事の成り行きを眺めること" },
-  { text: "火に油を注ぐ", reading: "ひにあぶらをそそぐ", note: "意味: 勢いのあるものにさらに勢いを加えることのたとえ" },
-  { text: "飛んで火に入る夏の虫", reading: "とんでひにいるなつのむし", note: "意味: 自ら進んで危険や災難に飛び込むことのたとえ" },
-  { text: "水に流す", reading: "みずにながす", note: "意味: 過去のいざこざをなかったことにすること" },
-  { text: "一石を投じる", reading: "いっせきをとうじる", note: "意味: 反響を呼ぶような問題を投げかけること" },
-  { text: "一日の長", reading: "いちじつのちょう", note: "意味: 経験や知識が他よりわずかに優れていること" },
-  { text: "瓜の蔓に茄子はならぬ", reading: "うりのつるになすびはならぬ", note: "意味: 平凡な親から非凡な子は生まれないというたとえ" },
-  { text: "蛙は口ゆえ蛇に呑まるる", reading: "かえるはくちゆえへびにのまるる", note: "意味: 余計なことを言ったために災いを招くことのたとえ" },
-  { text: "口は禍の門", reading: "くちはわざわいのかど", note: "意味: 不用意な発言は災いを招くもとになるという戒め" },
-  { text: "沈黙は金雄弁は銀", reading: "ちんもくはきんゆうべんはぎん", note: "意味: 多くを語らないことは雄弁であることよりも価値があるということ" },
-  { text: "言わぬが花", reading: "いわぬがはな", note: "意味: はっきり言わない方が趣があり奥ゆかしいということ" },
-  { text: "不言実行", reading: "ふげんじっこう", note: "意味: あれこれ言わず黙って実行すること" },
-  { text: "百戦錬磨", reading: "ひゃくせんれんま", note: "意味: 多くの経験を積んで鍛えられていること" },
-  { text: "一騎当千", reading: "いっきとうせん", note: "意味: 一人で千人の敵に対抗できるほど強く優れていること" },
-  { text: "満身創痍", reading: "まんしんそうい", note: "意味: 体中傷だらけであること、また非常に疲れ果てた状態のたとえ" },
-  { text: "疾風迅雷", reading: "しっぷうじんらい", note: "意味: 行動が非常に素早く激しいことのたとえ" },
-  { text: "一触即発", reading: "いっしょくそくはつ", note: "意味: ちょっとしたきっかけで大事が起こりそうな緊迫した状態" },
-  { text: "危機一髪", reading: "ききいっぱつ", note: "意味: 髪の毛一本ほどの差で危険が迫っている状態" },
-  { text: "起承転結", reading: "きしょうてんけつ", note: "意味: 物事の展開や文章の構成の型" },
-  { text: "出藍の誉れ", reading: "しゅつらんのほまれ", note: "意味: 弟子が師よりも優れた才能を発揮すること" },
-  { text: "青は藍より出でて藍より青し", reading: "あおはあいよりいでてあいよりあおし", note: "意味: 弟子が師よりも優れることのたとえ" },
-  { text: "千丈の堤も蟻の穴から", reading: "せんじょうのつつみもありのあなから", note: "意味: ほんの小さな油断が大きな失敗を招くことのたとえ" },
-  { text: "桃栗三年柿八年", reading: "ももくりさんねんかきはちねん", note: "意味: 何事も成果を得るには相応の年月が必要だということ" },
-  { text: "十年一昔", reading: "じゅうねんひとむかし", note: "意味: 十年も経てば世の中はすっかり変わってしまうということ" },
-  { text: "一年の計は元旦にあり", reading: "いちねんのけいはがんたんにあり", note: "意味: 何事も最初にしっかり計画を立てることが大切だということ" },
-  { text: "九仞の功を一簣に虧く", reading: "きゅうじんのこうをいっきにかく", note: "意味: 長い間の苦労も最後のわずかな油断で無駄にしてしまうことのたとえ" },
-  { text: "詰めが甘い", reading: "つめがあまい", note: "意味: 物事の最後の仕上げが不十分であること" },
-  { text: "有終の美", reading: "ゆうしゅうのび", note: "意味: 物事を最後までやり遂げて立派な成果を残すこと" },
-  { text: "完全無欠", reading: "かんぜんむけつ", note: "意味: 欠点が全くなく完全であること" },
-  { text: "前人未到", reading: "ぜんじんみとう", note: "意味: これまで誰も到達したことがないこと" },
-  { text: "唯一無二", reading: "ゆいいつむに", note: "意味: ただ一つだけで他に代わりがないこと" },
-  { text: "一世一代", reading: "いっせいちだい", note: "意味: 一生に一度だけの重大なこと" },
-  { text: "一日千秋", reading: "いちじつせんしゅう", note: "意味: 非常に待ち遠しく思うことのたとえ" },
-  { text: "首を長くする", reading: "くびをながくする", note: "意味: 期待して待ちわびること" },
-  { text: "果報は寝て待て", reading: "かほうはねてまて", note: "意味: 幸運は焦らず自然にやってくるのを待つのがよいということ" },
-  { text: "人事を尽くして天命を待つ", reading: "じんじをつくしててんめいをまつ", note: "意味: 全力を尽くしたら後の結果は天に任せるしかないということ" },
-  { text: "労多くして功少なし", reading: "ろうおおくしてこうすくなし", note: "意味: 苦労ばかり多くて成果が少ないことのたとえ" },
-  { text: "大巧は拙なるが若し", reading: "たいこうはせつなるがごとし", note: "意味: 本当に優れた技量を持つ人はかえって不器用に見えるということ" },
-  { text: "弘法筆を選ばず", reading: "こうぼうふでをえらばず", note: "意味: 本当の名人は道具の良し悪しに左右されず立派な仕事をするということ" },
-  { text: "芸は身を助く", reading: "げいはみをたすく", note: "意味: 身につけた芸事や技能がいざという時に生計の助けになるということ" },
-  { text: "一芸は道に通ずる", reading: "いちげいはみちにつうずる", note: "意味: 一つの芸を極めれば他の道にも通じる普遍的な真理を得るということ" },
-  { text: "下手の横好き", reading: "へたのよこずき", note: "意味: 上手ではないのに、そのことが非常に好きで熱心に行うこと" },
-  { text: "虻蜂取らず", reading: "あぶはちとらず", note: "意味: 欲張って両方とも取ろうとして結局どちらも得られないことのたとえ" },
-  { text: "一挙両得", reading: "いっきょりょうとく", note: "意味: 一つの行動で二つの利益を得ることのたとえ" },
-  { text: "三者三様", reading: "さんしゃさんよう", note: "意味: 三人いれば三人それぞれのやり方や考え方があるということ" },
-  { text: "千差万別", reading: "せんさばんべつ", note: "意味: 物事にはそれぞれ違いがあり同じものは一つもないということ" },
-  { text: "十把一絡げ", reading: "じっぱひとからげ", note: "意味: 種類や質を問わず全て一まとめに扱うこと" },
-  { text: "玉石混淆", reading: "ぎょくせきこんこう", note: "意味: 優れたものと劣ったものが入り混じっていること" },
-  { text: "有象無象", reading: "うぞうむぞう", note: "意味: くだらないものや取るに足らない人々のこと" },
-  { text: "同床異夢", reading: "どうしょういむ", note: "意味: 一緒に行動していても考えや目的が異なっていること" },
-  { text: "表裏一体", reading: "ひょうりいったい", note: "意味: 二つの物事が切り離せない密接な関係にあること" },
-  { text: "一心同体", reading: "いっしんどうたい", note: "意味: 二人以上の人が心を一つにして固く結びついていること" },
-  { text: "阿吽の呼吸", reading: "あうんのこきゅう", note: "意味: 二人以上の人が息をぴったり合わせて物事を行うこと" },
-  { text: "以心伝心", reading: "いしんでんしん", note: "意味: 言葉にしなくても互いの心が通じ合うこと" },
-  { text: "単純明快", reading: "たんじゅんめいかい", note: "意味: 物事が非常に分かりやすくはっきりしていること" },
-  { text: "心機一転", reading: "しんきいってん", note: "意味: あることをきっかけに気持ちがすっかり変わること" },
-  { text: "一意専心", reading: "いちいせんしん", note: "意味: 心を一つのことに集中して打ち込むこと" },
-  { text: "全身全霊", reading: "ぜんしんぜんれい", note: "意味: 体力と精神力の全て" },
-  { text: "粉骨砕身", reading: "ふんこつさいしん", note: "意味: 力の限り努力すること" },
-  { text: "悪戦苦闘", reading: "あくせんくとう", note: "意味: 苦しい状況の中で必死に努力すること" },
-  { text: "七転八倒", reading: "しちてんばっとう", note: "意味: 苦痛のあまり転げ回ってもがき苦しむこと" },
-  { text: "捲土重来", reading: "けんどちょうらい", note: "意味: 一度敗れた者が勢いを盛り返して再挑戦すること" },
-  { text: "一念発起", reading: "いちねんほっき", note: "意味: あることを成し遂げようと決意すること" },
-  { text: "初志貫徹", reading: "しょしかんてつ", note: "意味: 最初に思い立った志を最後まで貫き通すこと" },
-  { text: "不撓不屈", reading: "ふとうふくつ", note: "意味: どんな困難にあってもくじけないこと" },
-  { text: "堅忍不抜", reading: "けんにんふばつ", note: "意味: 心を堅く保ち何事にも動じないこと" },
-  { text: "前途洋々", reading: "ぜんとようよう", note: "意味: 将来の見通しが明るく開けていること" },
-  { text: "前途多難", reading: "ぜんとたなん", note: "意味: これから先、困難なことが多く待ち受けていること" },
-  { text: "暗中模索", reading: "あんちゅうもさく", note: "意味: 手がかりのないまま、あれこれと試みること" },
-  { text: "こんな夢を見た。", reading: "こんなゆめをみた", note: "夏目漱石『夢十夜』" },
-  { text: "人間、失格。", reading: "にんげんしっかく", note: "太宰治『人間失格』" },
-  { text: "禅智内供の鼻と云えば、池の尾で知らない者はない。", reading: "ぜんちないぐのはなといえばいけのおでしらないものはない", note: "芥川龍之介『鼻』" },
-  { text: "二人の若い紳士が、すっかりイギリスの兵隊のかたちをして", reading: "ふたりのわかいしんしがすっかりいぎりすのへいたいのかたちをして", note: "宮沢賢治『注文の多い料理店』" },
-  { text: "どっどどどうどどうどどうどどどう", reading: "どっどどどうどどうどどうどどどう", note: "宮沢賢治『風の又三郎』" },
-  { text: "道がつづら折りになって、いよいよ天城峠に近づいたと思う頃", reading: "みちがつづらおりになっていよいよあまぎとうげにちかづいたとおもうころ", note: "川端康成『伊豆の踊子』" },
-  { text: "ふるさとの訛なつかし停車場の人ごみの中にそを聴きにゆく", reading: "ふるさとのなまりなつかしていしゃばのひとごみのなかにそをききにゆく", note: "石川啄木『一握の砂』" },
-  { text: "たわむれに母を背負いてそのあまり軽きに泣きて三歩あゆまず", reading: "たわむれにははをおぶいてそのあまりかろきになきてさんぽあゆまず", note: "石川啄木『一握の砂』" },
-  { text: "露と落ち露と消えにしわが身かな浪速のことは夢のまた夢", reading: "つゆとおちつゆときえにしわがみかななにわのことはゆめのまたゆめ", note: "豊臣秀吉" },
-  { text: "運は天にあり鎧は胸にあり手柄は足にあり", reading: "うんはてんにありよろいはむねにありてがらはあしにあり", note: "上杉謙信" },
-  { text: "曇りなき心の月を先立てて浮世の闇を照らしてぞ行く", reading: "くもりなきこころのつきをさきだててうきよのやみをてらしてぞゆく", note: "伊達政宗" },
-  { text: "怒りは敵と思え", reading: "いかりはてきとおもえ", note: "徳川家康" },
-  { text: "おもしろき事もなき世をおもしろく", reading: "おもしろきこともなきよをおもしろく", note: "高杉晋作" },
-  { text: "過ぎたるは猶及ばざるが如し", reading: "すぎたるはなおおよばざるがごとし", note: "孔子『論語』" },
-  { text: "君子は和して同ぜず、小人は同じて和せず", reading: "くんしはわしてどうぜずしょうじんはどうじてわせず", note: "孔子『論語』" },
-  { text: "知らざるを知らずと為す是知るなり", reading: "しらざるをしらずとなすこれしるなり", note: "孔子『論語』" },
-  { text: "徳は孤ならず必ず隣あり", reading: "とくはこならずかならずとなりあり", note: "孔子『論語』" },
-  { text: "リスクを取らないことが最大のリスクだ", reading: "りすくをとらないことがさいだいのりすくだ", note: "羽生善治" },
-  { text: "つれづれなるままに、日暮らし、硯にむかひて", reading: "つれづれなるままにひぐらしすずりにむかいて", note: "兼好法師『徒然草』" },
-  { text: "ゆく河の流れは絶えずして、しかも、もとの水にあらず。", reading: "ゆくかわのながれはたえずしてしかももとのみずにあらず", note: "鴨長明『方丈記』" },
-  { text: "閑さや岩にしみ入る蝉の声", reading: "しずかさやいわにしみいるせみのこえ", note: "松尾芭蕉" },
-  { text: "夏草や兵どもが夢の跡", reading: "なつくさやつわものどもがゆめのあと", note: "松尾芭蕉" },
-  { text: "五月雨をあつめて早し最上川", reading: "さみだれをあつめてはやしもがみがわ", note: "松尾芭蕉" },
-  { text: "菜の花や月は東に日は西に", reading: "なのはなやつきはひがしにひはにしに", note: "与謝蕪村" },
-  { text: "痩蛙負けるな一茶これにあり", reading: "やせがえるまけるないっさこれにあり", note: "小林一茶" },
-  { text: "雀の子そこのけそこのけお馬が通る", reading: "すずめのこそこのけそこのけおうまがとおる", note: "小林一茶" },
-  { text: "朝に道を聞かば夕べに死すとも可なり", reading: "あさにみちをきかばゆうべにしすともかなり", note: "孔子『論語』" },
-  { text: "義を見てせざるは勇無きなり", reading: "ぎをみてせざるはゆうなきなり", note: "孔子『論語』" },
-  { text: "故きを温ねて新しきを知る", reading: "ふるきをたずねてあたらしきをしる", note: "孔子『論語』" },
-  { text: "彼を知り己を知れば百戦殆うからず", reading: "かれをしりおのれをしればひゃくせんあやうからず", note: "孫子『孫子』" },
-  { text: "武士道は、その表徴である桜花と同じく、日本の土地に固有の花である。", reading: "ぶしどうはそのひょうちょうであるおうかとおなじくにほんのとちにこゆうのはなである", note: "新渡戸稲造『武士道』" },
-  { text: "人生は一箱のマッチに似ている。重大に扱うのはばかばかしい。重大に扱わなければ危険である。", reading: "じんせいはいちはこのまっちににているじゅうだいにあつかうのはばかばかしいじゅうだいにあつかわなければきけんである", note: "芥川龍之介『侏儒の言葉』" },
-  { text: "秋の日は釣瓶落とし", reading: "あきのひはつるべおとし", note: "意味: 秋の日暮れは非常に早いことのたとえ" },
-  { text: "一富士二鷹三茄子", reading: "いちふじにたかさんなすび", note: "意味: 初夢に見ると縁起が良いとされるものの順序" },
-  { text: "冬来たりなば春遠からじ", reading: "ふゆきたりなばはるとおからじ", note: "意味: つらい時期を耐えれば必ず良い時が来るということ" },
-  { text: "花は根に鳥は古巣に", reading: "はなはねにとりはふるすに", note: "意味: 物事はすべて元の状態に戻るというたとえ" },
-  { text: "桜切る馬鹿梅切らぬ馬鹿", reading: "さくらきるばかうめきらぬばか", note: "意味: 木の性質に応じた手入れをすべきだという教え" },
-  { text: "金は天下の回り物", reading: "かねはてんかのまわりもの", note: "意味: お金は一つの所にとどまらず、世の中を巡っていくものだということ" },
-  { text: "安物買いの銭失い", reading: "やすものがいのぜにうしない", note: "意味: 安価なものは品質が悪くかえって損をするということ" },
-  { text: "損して得取れ", reading: "そんしてとくとれ", note: "意味: 目先の損を気にせず先の大きな利益を見据えて行動せよという教え" },
-  { text: "一銭を笑う者は一銭に泣く", reading: "いっせんをわらうものはいっせんになく", note: "意味: わずかなお金でも粗末にする者はそのわずかなお金で苦労するということ" },
-  { text: "親の心子知らず", reading: "おやのこころこしらず", note: "意味: 親が子を思う深い気持ちを子どもはなかなか理解できないということ" },
-  { text: "子は鎹", reading: "こはかすがい", note: "意味: 子どもの存在が夫婦の仲をつなぎとめる役割を果たすということ" },
-  { text: "一姫二太郎", reading: "いちひめにたろう", note: "意味: 子育ては最初が女の子、次が男の子の順だと育てやすいということ" },
-  { text: "可愛い子には旅をさせよ", reading: "かわいいこにはたびをさせよ", note: "意味: 子どもを甘やかさず、あえて苦労を経験させたほうがよいという教え" },
-  { text: "紺屋の白袴", reading: "こうやのしろばかま", note: "意味: 他人のためには忙しく働くが自分自身のことは疎かにしがちであるということ" },
-  { text: "遠くの親戚より近くの他人", reading: "とおくのしんせきよりちかくのたにん", note: "意味: いざという時には遠い親戚よりも近くにいる他人の方が頼りになるということ" },
-  { text: "類は友を呼ぶ", reading: "るいはともをよぶ", note: "意味: 似た者同士は自然と集まり親しくなるということ" },
-  { text: "朱に交われば赤くなる", reading: "しゅにまじわればあかくなる", note: "意味: 人は付き合う相手や環境に影響されて感化されるということ" },
-  { text: "三日天下", reading: "みっかてんか", note: "意味: 権力や地位を得てもごく短期間しか続かないことのたとえ" },
-  { text: "泥仕合", reading: "どろじあい", note: "意味: 互いに相手の欠点や恥を暴き合う醜い争いのこと" },
-  { text: "内弁慶", reading: "うちべんけい", note: "意味: 家の中では威張るが外では気が弱くなる人のこと" },
-  { text: "生き馬の目を抜く", reading: "いきうまのめをぬく", note: "意味: 油断もすきもならないほど素早く抜け目なく物事をすることのたとえ" },
-  { text: "商いは牛の涎", reading: "あきないはうしのよだれ", note: "意味: 商売は牛の涎のように気長に辛抱強く続けることが大事だということ" },
-  { text: "三方よし", reading: "さんぽうよし", note: "意味: 売り手・買い手・世間の三者すべてに利益があるのが良い商売だという近江商人の心得" },
-  { text: "士は己を知る者の為に死す", reading: "しはおのれをしるもののためにしす" },
-  { text: "少年老い易く学成り難し", reading: "しょうねんおいやすくがくなりがたし" },
-  { text: "天知る地知る我知る人知る", reading: "てんしるちしるわれしるひとしる" },
-  { text: "人間到る処青山あり", reading: "じんかんいたるところせいざんあり" },
-  { text: "会者定離", reading: "えしゃじょうり" },
-  { text: "一切皆苦", reading: "いっさいかいく" },
-  { text: "色即是空空即是色", reading: "しきそくぜくうくうそくぜしき" },
-  { text: "生者必滅会者定離", reading: "しょうじゃひつめつえしゃじょうり" },
-  { text: "やってみせ、言って聞かせて、させてみせ、ほめてやらねば、人は動かじ", reading: "やってみせいってきかせてさせてみせほめてやらねばひとはうごかじ" },
-  { text: "独立自尊", reading: "どくりつじそん" },
-  { text: "柿くへば鐘が鳴るなり法隆寺", reading: "かきくえばかねがなるなりほうりゅうじ" },
-  { text: "いくたびも雪の深さを尋ねけり", reading: "いくたびもゆきのふかさをたずねけり" },
-  { text: "去年今年貫く棒の如きもの", reading: "こぞことしつらぬくぼうのごときもの" },
-  { text: "白鳥は哀しからずや空の青海のあおにも染まずただよう", reading: "しらとりはかなしからずやそらのあおうみのあおにもそまずただよう" },
-  { text: "山の動く日来る", reading: "やまのうごくひくる" },
-  { text: "よだかは、実にみにくい鳥です。", reading: "よだかはじつにみにくいとりです" },
-  { text: "小田原熱海間に、軽便鉄道敷設の工事が始まったのは、良平の八つの年だった。", reading: "おだわらあたみかんにけいべんてつどうふせつのこうじがはじまったのはりょうへいのやっつのとしだった" },
-  { text: "或曇った冬の日暮れである。", reading: "あるくもったふゆのひぐれである" },
-  { text: "仲良きことは美しき哉", reading: "なかよきことはうつくしきかな" },
-  { text: "学びて厭わず人を誨えて倦まず", reading: "まなびていとわずひとをおしえてうまず" },
-  { text: "君子は義に喩り、小人は利に喩る", reading: "くんしはぎにさとりしょうじんはりにさとる" },
-  { text: "剛毅木訥仁に近し", reading: "ごうきぼくとつじんにちかし" },
-  { text: "過ちを見て斯に仁を知る", reading: "あやまちをみてここにじんをしる" },
-  { text: "己を修めて人を安んず", reading: "おのれをおさめてひとをやすんず" },
-  { text: "人遠慮無ければ必ず近憂あり", reading: "ひとえんりょなければかならずきんゆうあり" },
-  { text: "小人閑居して不善を為す", reading: "しょうじんかんきょしてふぜんをなす" },
-  { text: "修身斉家治国平天下", reading: "しゅうしんせいかちこくへいてんか" },
-  { text: "唯仁者のみ能く人を好み能く人を悪む", reading: "ただじんしゃのみよくひとをこのみよくひとをにくむ" },
-  { text: "上善は水の如し", reading: "じょうぜんはみずのごとし" },
-  { text: "足るを知る者は富む", reading: "たるをしるものはとむ" },
-  { text: "胡蝶の夢", reading: "こちょうのゆめ" },
-  { text: "兵は詭道なり", reading: "へいはきどうなり" },
-  { text: "百戦百勝は善の善なる者に非ざるなり", reading: "ひゃくせんひゃくしょうはぜんのぜんなるものにあらざるなり" },
-  { text: "惻隠の心は仁の端なり", reading: "そくいんのこころはじんのたんなり" },
-  { text: "生を捨てて義を取る", reading: "せいをすててぎをとる" },
-  { text: "善人なおもて往生をとぐ、いわんや悪人をや", reading: "ぜんにんなおもておうじょうをとぐいわんやあくにんをや" },
-  { text: "身心脱落", reading: "しんじんだつらく" },
-  { text: "虚しく往きて実ちて帰る", reading: "むなしくゆきてみちてかえる" },
-  { text: "災難に逢う時節には災難に逢うがよく候", reading: "さいなんにあうじせつにはさいなんにあうがよくそうろう" },
-  { text: "東海の小島の磯の白砂に我泣きぬれて蟹とたわむる", reading: "とうかいのこじまのいそのしらすなにわれなきぬれてかにとたわむる" },
-  { text: "ふるさとの山に向いて言うことなし ふるさとの山はありがたきかな", reading: "ふるさとのやまにむいていうことなしふるさとのやまはありがたきかな" },
-  { text: "山路来て何やらゆかしすみれ草", reading: "やまじきてなにやらゆかしすみれぐさ" },
-  { text: "荒海や佐渡によこたふ天河", reading: "あらうみやさどによこたうあまのがわ" },
-  { text: "赤い椿白い椿と落ちにけり", reading: "あかいつばきしろいつばきとおちにけり" },
-  { text: "心を燃やせ", reading: "こころをもやせ" },
-  { text: "迷いは晴れる、進めば", reading: "まよいははれるすすめば" },
-  { text: "夢を見る力が人生を変える", reading: "ゆめをみるちからがじんせいをかえる" },
-  { text: "笑顔の数だけ幸せになれる", reading: "えがおのかずだけしあわせになれる" },
-  { text: "誰かの支えになれる自分でありたい", reading: "だれかのささえになれるじぶんでありたい" },
-  { text: "今日の一歩が明日を作る", reading: "きょうのいっぽがあすをつくる" },
-  { text: "できないと決めつけるな", reading: "できないときめつけるな" },
-  { text: "挑戦こそが人生を彩る", reading: "ちょうせんこそがじんせいをいろどる" },
-  { text: "心の奥にある声を聞け", reading: "こころのおくにあるこえをきけ" },
-  { text: "諦めた先に道はない", reading: "あきらめたさきにみちはない" },
-  { text: "涙の後には必ず晴れる", reading: "なみだのあとにはかならずはれる" },
-  { text: "自分を信じることから全ては始まる", reading: "じぶんをしんじることからすべてははじまる" },
-  { text: "過去は変えられぬが今は変えられる", reading: "かこはかえられぬがいまはかえられる" },
-  { text: "小さな灯りでも闇を照らす", reading: "ちいさなあかりでもやみをてらす" },
-  { text: "人は何度でもやり直せる", reading: "ひとはなんどでもやりなおせる" },
-  { text: "心が折れても骨は折れない", reading: "こころがおれてもほねはおれない" },
-  { text: "今この瞬間を大切に生きる", reading: "いまこのしゅんかんをたいせつにいきる" },
-  { text: "苦しみは成長のしるしだ", reading: "くるしみはせいちょうのしるしだ" },
-  { text: "一歩一歩が景色を変える", reading: "いっぽいっぽがけしきをかえる" },
-  { text: "心に決めた道を進め", reading: "こころにきめたみちをすすめ" },
-  { text: "弱さを知る者こそ本当に強い", reading: "よわさをしるものこそほんとうにつよい" },
-  { text: "変わろうとする勇気を持て", reading: "かわろうとするゆうきをもて" },
-  { text: "誰も見ていなくても手を抜くな", reading: "だれもみていなくてもてをぬくな" },
-  { text: "続けることに意味がある", reading: "つづけることにいみがある" },
-  { text: "明日を信じて今日を生きる", reading: "あすをしんじてきょうをいきる" },
-  { text: "悔いのない選択をせよ", reading: "くいのないせんたくをせよ" },
-  { text: "心の底から笑える日を作れ", reading: "こころのそこからわらえるひをつくれ" },
-  { text: "夢見る心を忘れるな", reading: "ゆめみるこころをわすれるな" },
-  { text: "全力を尽くせば後悔はない", reading: "ぜんりょくをつくせばこうかいはない" },
-  { text: "光は闇の中でこそ輝く", reading: "ひかりはやみのなかでこそかがやく" },
-  { text: "迷った時は初心を思い出せ", reading: "まよったときはしょしんをおもいだせ" },
-  { text: "挑む者だけが景色を変えられる", reading: "いどむものだけがけしきをかえられる" },
-  { text: "誰かを想う心が人を強くする", reading: "だれかをおもうこころがひとをつよくする" },
-  { text: "昨日より一歩前へ", reading: "きのうよりいっぽまえへ" },
-  { text: "心の中の火を絶やすな", reading: "こころのなかのひをたやすな" },
-  { text: "出会いが人を変える", reading: "であいがひとをかえる" },
-  { text: "一歩踏み出せば景色が変わる", reading: "いっぽふみだせばけしきがかわる" },
-  { text: "静かな努力ほど強いものはない", reading: "しずかなどりょくほどつよいものはない" },
-  { text: "生きるとは選び続けることだ", reading: "いきるとはえらびつづけることだ" },
-  { text: "心が定まれば道は開ける", reading: "こころがさだまればみちはひらける" },
-  { text: "涙も笑顔も自分を作る糧だ", reading: "なみだもえがおもじぶんをつくるかてだ" },
-  { text: "諦めない心が奇跡を呼ぶ", reading: "あきらめないこころがきせきをよぶ" },
-  { text: "挑戦する者に失敗はあっても後悔はない", reading: "ちょうせんするものにしっぱいはあってもこうかいはない" },
-  { text: "未来は誰にも見えないから面白い", reading: "みらいはだれにもみえないからおもしろい" },
-  { text: "今日という日をもう一度生きられたら", reading: "きょうというひをもういちどいきられたら" },
-  { text: "心にしまった夢を取り出せ", reading: "こころにしまったゆめをとりだせ" },
-  { text: "頑張る姿は誰かの光になる", reading: "がんばるすがたはだれかのひかりになる" },
-  { text: "迷いながらも前を向く", reading: "まよいながらもまえをむく" },
-  { text: "一日の終わりに笑えるように生きよ", reading: "いちにちのおわりにわらえるようにいきよ" },
-  { text: "心の声に嘘をつくな", reading: "こころのこえにうそをつくな" },
-  { text: "諦めの二文字を捨てよ", reading: "あきらめのにもじをすてよ" },
-  { text: "挑戦なくして成長なし", reading: "ちょうせんなくしてせいちょうなし" },
-  { text: "苦しい時こそ本当の自分が見える", reading: "くるしいときこそほんとうのじぶんがみえる" },
-  { text: "誰かの一言で人生は変わる", reading: "だれかのひとことでじんせいはかわる" },
-  { text: "心の中の子どもを忘れるな", reading: "こころのなかのこどもをわすれるな" },
-  { text: "一つの決意が未来を変える", reading: "ひとつのけついがみらいをかえる" },
-  { text: "涙は心の汗である", reading: "なみだはこころのあせである" },
-  { text: "明日を憂うより今日を生きよ", reading: "あすをうれうよりきょうをいきよ" },
-  { text: "己に勝つ者こそ真の強者だ", reading: "おのれにかつものこそしんのきょうしゃだ" },
-  { text: "心の平穏こそ何よりの財産だ", reading: "こころのへいおんこそなによりのざいさんだ" },
-  { text: "迷いは行動によって消え去る", reading: "まよいはこうどうによってきえさる" },
-  { text: "小さな親切が世界を明るくする", reading: "ちいさなしんせつがせかいをあかるくする" },
-  { text: "挫けそうな時こそ胸を張れ", reading: "くじけそうなときこそむねをはれ" },
-  { text: "心に太陽を宿せ", reading: "こころにたいようをやどせ" },
-  { text: "一度きりの命を大切に生きよ", reading: "いちどきりのいのちをたいせつにいきよ" },
-  { text: "涙の数だけ強くなれる", reading: "なみだのかずだけつよくなれる" },
-  { text: "目の前の一歩を信じて進め", reading: "めのまえのいっぽをしんじてすすめ" },
-  { text: "心を尽くせば必ず伝わる", reading: "こころをつくせばかならずつたわる" },
-  { text: "迷いの中にこそ答えがある", reading: "まよいのなかにこそこたえがある" },
-  { text: "諦めた瞬間に夢は終わる", reading: "あきらめたしゅんかんにゆめはおわる" },
-  { text: "心の傷は誰かを思いやる力になる", reading: "こころのきずはだれかをおもいやるちからになる" },
-  { text: "何度倒れても立ち上がればいい", reading: "なんどたおれてもたちあがればいい" },
-  { text: "一つの笑顔が誰かを救うことがある", reading: "ひとつのえがおがだれかをすくうことがある" },
-  { text: "心の準備が整えば道は開ける", reading: "こころのじゅんびがととのえばみちはひらける" },
-  { text: "挑戦する心を忘れた時、人は老いる", reading: "ちょうせんするこころをわすれたときひとはおいる" },
-  { text: "一瞬一瞬を大切に生きよ", reading: "いっしゅんいっしゅんをたいせつにいきよ" },
-  { text: "心の中の灯を消すな", reading: "こころのなかのひをけすな" },
-  { text: "涙を流した分だけ人は優しくなれる", reading: "なみだをながしたぶんだけひとはやさしくなれる" },
-  { text: "何もしないことが一番の後悔になる", reading: "なにもしないことがいちばんのこうかいになる" },
-  { text: "心が広ければ道も広がる", reading: "こころがひろければみちもひろがる" },
-  { text: "一日一日を積み重ねた先に未来がある", reading: "いちにちいちにちをつみかさねたさきにみらいがある" },
-  { text: "迷った時は自分の心に聞け", reading: "まよったときはじぶんのこころにきけ" },
-  { text: "挑む勇気が人生を切り開く", reading: "いどむゆうきがじんせいをきりひらく" },
-  { text: "心が折れそうな夜こそ朝を信じよ", reading: "こころがおれそうなよるこそあさをしんじよ" },
-  { text: "一つの出会いが人生を彩る", reading: "ひとつのであいがじんせいをいろどる" },
-  { text: "涙も笑顔もすべて自分の物語だ", reading: "なみだもえがおもすべてじぶんのものがたりだ" },
-  { text: "諦めなければ道は必ず見える", reading: "あきらめなければみちはかならずみえる" },
-  { text: "心の中の可能性を信じよ", reading: "こころのなかのかのうせいをしんじよ" },
-  { text: "一歩ずつでも歩み続ければ辿り着く", reading: "いっぽずつでもあゆみつづければたどりつく" },
-  { text: "挑戦する心こそが青春だ", reading: "ちょうせんするこころこそがせいしゅんだ" },
-  { text: "石橋を叩いても渡らない", reading: "いしばしをたたいてもわたらない", note: "意味: 用心深すぎてかえって行動できないことのたとえ" },
-  { text: "転石苔を生ぜず", reading: "てんせきこけをしょうぜず", note: "意味: 職業や住居を転々と変える人は大成しないというたとえ" },
-  { text: "好事門を出でず悪事千里を行く", reading: "こうじもんをいでずあくじせんりをいく", note: "意味: 良い行いは知られにくいが悪い行いはすぐ世間に広まるということ" },
-  { text: "医者と味噌は古いほどよい", reading: "いしゃとみそはふるいほどよい", note: "意味: 経験を積んだ医者や熟成した味噌は良いものだというたとえ" },
-  { text: "病は気から", reading: "やまいはきから", note: "意味: 病気は気の持ちようで悪化したり回復したりするということ" },
-  { text: "命あっての物種", reading: "いのちあってのものだね", note: "意味: どんなことも命があってこそ成り立つものだということ" },
-  { text: "命長ければ恥多し", reading: "いのちながければはじおおし", note: "意味: 長生きするとその分恥をかくことも多くなるということ" },
-  { text: "老いの一徹", reading: "おいのいってつ", note: "意味: 年をとると考えを変えず頑固になりやすいこと" },
-  { text: "老いてはますます壮んなるべし", reading: "おいてはますますさかんなるべし", note: "意味: 年をとってもなお盛んに気力を保つべきだという教え" },
-  { text: "実の生る木は花から知れる", reading: "みのなるきははなからしれる", note: "意味: 将来大成する人物は幼い頃からその片鱗が見えるというたとえ" },
-  { text: "栴檀は双葉より芳し", reading: "せんだんはふたばよりかんばし", note: "意味: 大成する人は幼い頃から優れた才能の片鱗を見せるということ" },
-  { text: "瓢箪から駒が出る", reading: "ひょうたんからこまがでる", note: "意味: 意外なところから思いがけない事実や結果が出ることのたとえ" },
-  { text: "濡れぬ先の傘", reading: "ぬれぬさきのかさ", note: "意味: 災難が起こる前にあらかじめ用心しておくことのたとえ" },
-  { text: "明日ありと思う心の仇桜", reading: "あすありとおもうこころのあだざくら", note: "意味: 明日があると油断していると思わぬ災いにあうことのたとえ" },
-  { text: "人生は朝露の如し", reading: "じんせいはちょうろのごとし", note: "意味: 人の一生ははかなく短いものだというたとえ" },
-  { text: "盛者必衰", reading: "じょうしゃひっすい", note: "意味: 勢いの盛んな者もいつか必ず衰えるということ" },
-  { text: "驕る平家は久しからず", reading: "おごるへいけはひさしからず", note: "意味: 権勢に驕り高ぶる者は長くは続かないというたとえ" },
-  { text: "後悔先に立たず", reading: "こうかいさきにたたず", note: "意味: 事が終わった後にいくら後悔しても取り返しがつかないということ" },
-  { text: "病膏肓に入る", reading: "やまいこうこうにいる", note: "意味: 物事に熱中しすぎてどうにも手がつけられない状態になることのたとえ" },
-  { text: "医食同源", reading: "いしょくどうげん", note: "意味: 病気の治療も日常の食事も健康を保つという点で同じ源から出ているという考え" },
-  { text: "腹八分目に医者いらず", reading: "はらはちぶんめにいしゃいらず", note: "意味: 食事は満腹まで食べず腹八分目にしておけば健康でいられるということ" },
-  { text: "食べず嫌い", reading: "たべずぎらい", note: "意味: 実際に試さないまま嫌うこと" },
-  { text: "京の着倒れ大阪の食い倒れ", reading: "きょうのきだおれおおさかのくいだおれ", note: "意味: 京都の人は衣服に、大阪の人は食に財産を使い果たすほど贅沢するということ" },
-  { text: "光陰惜しむべし", reading: "こういんおしむべし", note: "意味: 過ぎゆく時間は貴重なので大切にすべきだという教え" },
-  { text: "老馬の智用うべし", reading: "ろうばのちもちいべし", note: "意味: 経験を積んだ年配者の知恵は役に立つということ" },
-  { text: "経験に勝る教師なし", reading: "けいけんにまさるきょうしなし", note: "意味: 実際の経験ほど優れた教えを与えてくれるものはないということ" },
-  { text: "習うより慣れよ", reading: "ならうよりなれよ", note: "意味: 人に教わるよりも実際に経験を重ねる方が身につくということ" },
-  { text: "石を抱いて淵に入る", reading: "いしをいだいてふちにいる", note: "意味: 自分から進んで危険な状況に飛び込んでしまうことのたとえ" },
-  { text: "虎の尾を踏む", reading: "とらのおをふむ", note: "意味: 非常に危険なことを行うたとえ" },
-  { text: "命の綱", reading: "いのちのつな", note: "意味: 生きていくうえで頼りとする最も大切なもののたとえ" },
-  { text: "芸術は長く人生は短し", reading: "げいじゅつはながくじんせいはみじかし", note: "意味: 優れた芸術作品は永く残るが人の一生は短いということ" },
-  { text: "大海の一滴", reading: "たいかいのいってき", note: "意味: 広大なものの中のごくわずかな一部分のたとえ" },
-  { text: "九牛の一毛", reading: "きゅうぎゅうのいちもう", note: "意味: 多くの中のごくわずかな部分のたとえ" },
-  { text: "千里眼", reading: "せんりがん", note: "意味: 遠く離れた所や隠れた物事を見通す能力のたとえ" },
-  { text: "花鳥風月", reading: "かちょうふうげつ", note: "意味: 自然の美しい風物や、それを愛でる風雅な心" },
-  { text: "山紫水明", reading: "さんしすいめい", note: "意味: 山や川の景色が清らかで美しいこと" },
-  { text: "春夏秋冬", reading: "しゅんかしゅうとう", note: "意味: 四季それぞれの移り変わり" },
-  { text: "東奔西走", reading: "とうほんせいそう", note: "意味: 目的のためにあちこち忙しく走り回ること" },
-  { text: "南船北馬", reading: "なんせんほくば", note: "意味: 絶えず各地を旅して忙しく飛び回ること" },
-  { text: "千変万化", reading: "せんぺんばんか", note: "意味: さまざまに変化して尽きないこと" },
-  { text: "森羅万象", reading: "しんらばんしょう", note: "意味: 宇宙に存在するすべての物事や現象" },
-  { text: "自然淘汰", reading: "しぜんとうた", note: "意味: 環境に適応できないものが自然に淘汰されていくこと" },
-  { text: "適者生存", reading: "てきしゃせいぞん", note: "意味: 環境に最も適応した者が生き残るということ" },
-  { text: "弱肉強食", reading: "じゃくにくきょうしょく", note: "意味: 弱い者が強い者の犠牲になるという生存競争の厳しさ" },
-  { text: "栄枯盛衰", reading: "えいこせいすい", note: "意味: 栄えることと衰えることを繰り返す世の中の移り変わり" },
-  { text: "有為転変", reading: "ういてんぺん", note: "意味: この世の物事は絶えず変化し、はかないものであること" },
-  { text: "深謀遠慮", reading: "しんぼうえんりょ", note: "意味: 深く考え遠い先まで見通した計画のこと" },
-  { text: "準備万端", reading: "じゅんびばんたん", note: "意味: 必要な準備がすべて整っていること" },
-  { text: "当意即妙", reading: "とういそくみょう", note: "意味: その場に応じてすばやく機転を利かせること" },
-  { text: "絶体絶命", reading: "ぜったいぜつめい", note: "意味: 逃れられないほど追い詰められた状況" },
-  { text: "一挙一動", reading: "いっきょいちどう", note: "意味: ちょっとした一つ一つの動作や振る舞い" },
-  { text: "言行一致", reading: "げんこういっち", note: "意味: 言うこととすることが一致していること" },
-  { text: "率先垂範", reading: "そっせんすいはん", note: "意味: 人の先頭に立って模範を示すこと" },
-  { text: "責任転嫁", reading: "せきにんてんか", note: "意味: 自分の責任を他人になすりつけること" },
-  { text: "天罰覿面", reading: "てんばつてきめん", note: "意味: 悪事の報いがすぐにはっきりと現れること" },
-  { text: "勧善懲悪", reading: "かんぜんちょうあく", note: "意味: 善事を勧め悪事を懲らしめること" },
-  { text: "正々堂々", reading: "せいせいどうどう", note: "意味: 態度や方法が正しく立派で恥じるところがないこと" },
-  { text: "公明正大", reading: "こうめいせいだい", note: "意味: 判断や行動が公平で私心がなく正しいこと" },
-  { text: "誠心誠意", reading: "せいしんせいい", note: "意味: 偽りのない真心をもって物事に当たること" },
-  { text: "一心不乱", reading: "いっしんふらん", note: "意味: 他のことに気を取られず一つのことに心を集中すること" },
-  { text: "意気軒昂", reading: "いきけんこう", note: "意味: 元気が盛んで意気込みが盛んな様子" },
-  { text: "面目躍如", reading: "めんもくやくじょ", note: "意味: 世間の評価にふさわしい活躍をして名誉を保つこと" },
-  { text: "実力伯仲", reading: "じつりょくはくちゅう", note: "意味: 実力に優劣の差がほとんどないこと" },
-  { text: "十中八九", reading: "じっちゅうはっく", note: "意味: ほとんどの場合、大部分ということ" },
-  { text: "千辛万苦", reading: "せんしんばんく", note: "意味: さまざまな苦労を経験すること" },
-  { text: "粒々辛苦", reading: "りゅうりゅうしんく", note: "意味: こつこつと苦労を積み重ねて努力すること" },
-  { text: "刻苦勉励", reading: "こっくべんれい", note: "意味: 苦労をいとわず一生懸命努力に励むこと" },
-  { text: "剛毅果断", reading: "ごうきかだん", note: "意味: 意志が強く物事を思い切って実行できること" },
-  { text: "勇猛果敢", reading: "ゆうもうかかん", note: "意味: 勇ましく決断力に富み恐れず物事を行うこと" },
-  { text: "一刀両断", reading: "いっとうりょうだん", note: "意味: 物事をためらわずすばやくきっぱりと処理すること" },
-  { text: "快刀乱麻", reading: "かいとうらんま", note: "意味: もつれた物事を鮮やかに解決すること" },
-  { text: "縦横無尽", reading: "じゅうおうむじん", note: "意味: 自由自在に思う存分活躍すること" },
-  { text: "自由奔放", reading: "じゆうほんぽう", note: "意味: 他に束縛されず自分の思うままに振る舞うこと" },
-  { text: "天衣無縫", reading: "てんいむほう", note: "意味: 飾り気がなく無邪気で自然な様子" },
-  { text: "無我夢中", reading: "むがむちゅう", note: "意味: 我を忘れて一つのことに熱中すること" },
-  { text: "相思相愛", reading: "そうしそうあい", note: "意味: お互いに深く愛し合っていること" },
-  { text: "夫唱婦随", reading: "ふしょうふずい", note: "意味: 夫が言い出したことに妻が従い夫婦仲良く暮らすこと" },
-  { text: "比翼連理", reading: "ひよくれんり", note: "意味: 男女や夫婦の情愛が深く仲むつまじいことのたとえ" },
-  { text: "一蓮托生", reading: "いちれんたくしょう", note: "意味: 結果がどうであれ行動や運命を共にすること" },
-  { text: "敵は本能寺にあり", reading: "てきはほんのうじにあり", note: "意味: 表向きの目標とは別に真の狙いが他にあることのたとえ" },
-  { text: "韓信の股くぐり", reading: "かんしんのまたくぐり", note: "意味: 大きな目的のために一時の屈辱を耐え忍ぶことのたとえ" },
-  { text: "不易流行", reading: "ふえきりゅうこう", note: "意味: いつまでも変わらない本質と、時代とともに変化するものとの両方が大切だということ" },
-  { text: "有耶無耶", reading: "うやむや", note: "意味: 物事の態度や結末をはっきりさせないこと" },
-  { text: "曖昧模糊", reading: "あいまいもこ", note: "意味: 物事がぼんやりしていてはっきりしないこと" },
-  { text: "悠々自適", reading: "ゆうゆうじてき", note: "意味: 俗世を離れ自分の思うままにのんびりと暮らすこと" },
-  { text: "晴耕雨読", reading: "せいこううどく", note: "意味: 田園でのんびりと自適の生活を送ることのたとえ" },
-  { text: "春風駘蕩", reading: "しゅんぷうたいとう", note: "意味: 春風がのどかに吹く様子、また性格がのんびりして穏やかなこと" },
-  { text: "虚心坦懐", reading: "きょしんたんかい", note: "意味: 心にわだかまりがなく素直でさっぱりとしていること" },
-  { text: "清廉潔白", reading: "せいれんけっぱく", note: "意味: 心が清らかで私欲がなく後ろ暗いところが全くないこと" },
-  { text: "品行方正", reading: "ひんこうほうせい", note: "意味: 行いや態度が正しくきちんとしていること" },
-  { text: "質素倹約", reading: "しっそけんやく", note: "意味: 無駄を省き贅沢をせず慎ましく暮らすこと" },
-  { text: "勤倹力行", reading: "きんけんりっこう", note: "意味: 仕事に励み倹約して努力を実行すること" },
-  { text: "獅子奮迅", reading: "ししふんじん", note: "意味: 獅子が奮い立って猛進するように激しい勢いで物事に取り組むこと" },
-  { text: "百発百中", reading: "ひゃくはつひゃくちゅう", note: "意味: 予想や計画がすべて的中すること" },
-  { text: "疾風怒濤", reading: "しっぷうどとう", note: "意味: 時代や情勢が激しい勢いで変化する様子" },
-  { text: "紆余曲折", reading: "うよきょくせつ", note: "意味: 事情が込み入っていて、物事が何度も変化しながら進むこと" },
-  { text: "各人各様", reading: "かくじんかくよう", note: "意味: 人それぞれにやり方や考え方が違うこと" },
-  { text: "老若男女", reading: "ろうにゃくなんにょ", note: "意味: 年老いた人も若い人も男も女も、あらゆる人々" },
-  { text: "五臓六腑", reading: "ごぞうろっぷ", note: "意味: 体の内部、また心の奥底までという意味で使われる語" },
-  { text: "気宇壮大", reading: "きうそうだい", note: "意味: 心構えや発想が非常に大きく立派なこと" },
-  { text: "大同団結", reading: "だいどうだんけつ", note: "意味: 多くの団体や人が小さな違いを超えて共通の目的のために一つにまとまること" },
-  { text: "目が肥える", reading: "めがこえる", note: "意味: 良いものを見慣れて、物の価値を見分ける力がつくこと" },
-  { text: "目が高い", reading: "めがたかい", note: "意味: 物の価値を見分ける力に優れていること" },
-  { text: "目に余る", reading: "めにあまる", note: "意味: 程度がひどくて黙って見ていられないこと" },
-  { text: "目を細める", reading: "めをほそめる", note: "意味: うれしそうな表情をすること" },
-  { text: "目を光らせる", reading: "めをひからせる", note: "意味: 油断なく厳しく監視すること" },
-  { text: "目を丸くする", reading: "めをまるくする", note: "意味: 驚いて目を大きく見開くこと" },
-  { text: "目に入れても痛くない", reading: "めにいれてもいたくない", note: "意味: 我が子などを非常にかわいく思うことのたとえ" },
-  { text: "目もくれない", reading: "めもくれない", note: "意味: 全く関心を示さないこと" },
-  { text: "手が空く", reading: "てがあく", note: "意味: していた仕事が一段落して暇になること" },
-  { text: "手が込む", reading: "てがこむ", note: "意味: 細部まで手間をかけて作られていること" },
-  { text: "手が付けられない", reading: "てがつけられない", note: "意味: どうにも扱いようがなく困り果てること" },
-  { text: "手を切る", reading: "てをきる", note: "意味: それまでの関係を断つこと" },
-  { text: "手を焼く", reading: "てをやく", note: "意味: 扱いに困り苦労すること" },
-  { text: "手を貸す", reading: "てをかす", note: "意味: 人の仕事を手伝うこと" },
-  { text: "手を抜く", reading: "てをぬく", note: "意味: 労力を惜しんでいい加減に済ませること" },
-  { text: "手を尽くす", reading: "てをつくす", note: "意味: できる限りの方法をすべて試みること" },
-  { text: "足が出る", reading: "あしがでる", note: "意味: 予算より支出が多くなり赤字になること" },
-  { text: "足を洗う", reading: "あしをあらう", note: "意味: 好ましくない仕事や生活からきっぱりと抜け出すこと" },
-  { text: "足を運ぶ", reading: "あしをはこぶ", note: "意味: わざわざその場所へ出向くこと" },
-  { text: "足が棒になる", reading: "あしがぼうになる", note: "意味: 長く歩いたり立ったりして脚が疲れきること" },
-  { text: "顔が利く", reading: "かおがきく", note: "意味: 信用や力があって相手に無理な頼みごとがきくこと" },
-  { text: "顔を立てる", reading: "かおをたてる", note: "意味: 相手の名誉や面目を保たせること" },
-  { text: "顔をつぶす", reading: "かおをつぶす", note: "意味: 相手の面目を失わせること" },
-  { text: "顔色をうかがう", reading: "かおいろをうかがう", note: "意味: 相手の機嫌や様子を気にして探ること" },
-  { text: "頭が下がる", reading: "あたまがさがる", note: "意味: 相手の立派な行いに感心し敬意を抱くこと" },
-  { text: "頭を抱える", reading: "あたまをかかえる", note: "意味: 良い解決策がなく非常に困り果てること" },
-  { text: "頭をひねる", reading: "あたまをひねる", note: "意味: あれこれ考えて工夫すること" },
-  { text: "頭が固い", reading: "あたまがかたい", note: "意味: 考え方が柔軟でなく融通が利かないこと" },
-  { text: "首を突っ込む", reading: "くびをつっこむ", note: "意味: 物事に興味を持って深く関わろうとすること" },
-  { text: "首をかしげる", reading: "くびをかしげる", note: "意味: 疑問に思い不思議がること" },
-  { text: "首が回らない", reading: "くびがまわらない", note: "意味: 借金などで金銭的にどうにもならない状態のこと" },
-  { text: "肩を並べる", reading: "かたをならべる", note: "意味: 実力などが互角であること" },
-  { text: "肩の荷が下りる", reading: "かたのにがおりる", note: "意味: 責任や負担から解放されて楽になること" },
-  { text: "肩身が狭い", reading: "かたみがせまい", note: "意味: 世間に対して引け目を感じ肩身の狭い思いをすること" },
-  { text: "胸を張る", reading: "むねをはる", note: "意味: 自信を持って堂々とした態度をとること" },
-  { text: "胸をなでおろす", reading: "むねをなでおろす", note: "意味: 心配事が解決してほっと安心すること" },
-  { text: "胸が熱くなる", reading: "むねがあつくなる", note: "意味: 感動して心が強く動かされること" },
-  { text: "胸に刻む", reading: "むねにきざむ", note: "意味: 忘れないよう心に深く留めておくこと" },
-  { text: "腹を決める", reading: "はらをきめる", note: "意味: 覚悟を決めて心を固めること" },
-  { text: "腹が立つ", reading: "はらがたつ", note: "意味: 怒りの感情がこみ上げること" },
-  { text: "腹を探る", reading: "はらをさぐる", note: "意味: それとなく相手の考えや本心を推し量ろうとすること" },
-  { text: "腰が重い", reading: "こしがおもい", note: "意味: なかなか行動を起こそうとしないこと" },
-  { text: "腰を据える", reading: "こしをすえる", note: "意味: 落ち着いて物事にじっくりと取り組むこと" },
-  { text: "腰が低い", reading: "こしがひくい", note: "意味: 相手に対してへりくだった態度をとること" },
-  { text: "尻に火がつく", reading: "しりにひがつく", note: "意味: 事態が差し迫ってのんびりしていられなくなること" },
-  { text: "尻込みする", reading: "しりごみする", note: "意味: 恐れや不安から物事を実行するのをためらうこと" },
-  { text: "歯が立たない", reading: "はがたたない", note: "意味: 相手が強すぎて対抗する力がないこと" },
-  { text: "歯を食いしばる", reading: "はをくいしばる", note: "意味: 苦痛や困難を我慢して耐え忍ぶこと" },
-  { text: "歯に衣着せぬ", reading: "はにきぬきせぬ", note: "意味: 相手に遠慮せず率直に物を言うこと" },
-  { text: "鼻が高い", reading: "はながたかい", note: "意味: 得意になって誇らしく思うこと" },
-  { text: "鼻であしらう", reading: "はなであしらう", note: "意味: 相手を軽く見て冷淡な態度をとること" },
-  { text: "鼻につく", reading: "はなにつく", note: "意味: 飽きて嫌な感じを受けること" },
-  { text: "眉をひそめる", reading: "まゆをひそめる", note: "意味: 不快感や心配で顔をしかめること" },
-  { text: "骨を折る", reading: "ほねをおる", note: "意味: 苦労して力を尽くすこと" },
-  { text: "骨身にしみる", reading: "ほねみにしみる", note: "意味: 深く心に感じ入ること" },
-  { text: "血が騒ぐ", reading: "ちがさわぐ", note: "意味: 興奮して心が高ぶること" },
-  { text: "血も涙もない", reading: "ちもなみだもない", note: "意味: 人情や思いやりが全くないこと" },
-  { text: "肝を冷やす", reading: "きもをひやす", note: "意味: 危険な目にあってひやりとすること" },
-  { text: "肝が据わる", reading: "きもがすわる", note: "意味: 物事に動じず度胸があること" },
-  { text: "腕を磨く", reading: "うでをみがく", note: "意味: 技術や能力を鍛えて高めること" },
-  { text: "腕が鳴る", reading: "うでがなる", note: "意味: 自分の力を発揮したくて意気込むこと" },
-  { text: "腕によりをかける", reading: "うでによりをかける", note: "意味: 持てる技術を存分に発揮しようと意気込むこと" },
-  { text: "舌鼓を打つ", reading: "したつづみをうつ", note: "意味: おいしいものを食べて満足の声をあげること" },
-  { text: "喉から手が出る", reading: "のどからてがでる", note: "意味: 物がひどく欲しくてたまらないことのたとえ" },
-  { text: "息を呑む", reading: "いきをのむ", note: "意味: 驚きや緊張で一瞬息を止めること" },
-  { text: "息が合う", reading: "いきがあう", note: "意味: 互いの気持ちや調子がぴったり合うこと" },
-  { text: "気が置けない", reading: "きがおけない", note: "意味: 遠慮なく打ち解けて付き合えること" },
-  { text: "気が利く", reading: "きがきく", note: "意味: 細やかに配慮ができて機転が利くこと" },
-  { text: "気を揉む", reading: "きをもむ", note: "意味: 心配して落ち着かない気持ちになること" },
-  { text: "気が短い", reading: "きがみじかい", note: "意味: すぐに怒ったりいらだったりする性質のこと" },
-  { text: "気に病む", reading: "きにやむ", note: "意味: あれこれ心配して悩むこと" },
-  { text: "心を鬼にする", reading: "こころをおににする", note: "意味: 相手のためを思ってあえて厳しい態度をとること" },
-  { text: "心を打たれる", reading: "こころをうたれる", note: "意味: 深く感動すること" },
-  { text: "心が躍る", reading: "こころがおどる", note: "意味: 期待や喜びで心が浮き立つこと" },
-  { text: "力を尽くす", reading: "ちからをつくす", note: "意味: 持てる力のすべてを出し切って努力すること" },
-  { text: "力を落とす", reading: "ちからをおとす", note: "意味: 気力を失いがっかりすること" },
-  { text: "根に持つ", reading: "ねにもつ", note: "意味: いつまでも恨みの気持ちを忘れずにいること" },
-  { text: "根も葉もない", reading: "ねもはもない", note: "意味: 何の根拠もないでたらめなことのたとえ" },
-  { text: "影が薄い", reading: "かげがうすい", note: "意味: 存在感が乏しく目立たないこと" },
-  { text: "音を上げる", reading: "ねをあげる", note: "意味: 苦しさに耐えきれず弱音を吐くこと" },
-  { text: "火の車", reading: "ひのくるま", note: "意味: 経済状態が非常に苦しいことのたとえ" },
-  { text: "水を差す", reading: "みずをさす", note: "意味: 順調に進んでいる物事の邪魔をすること" },
-  { text: "波に乗る", reading: "なみにのる", note: "意味: その時の勢いにうまく乗って物事を進めること" },
-  { text: "板につく", reading: "いたにつく", note: "意味: 経験を積んで役割や地位にふさわしくなること" },
-  { text: "筋が通る", reading: "すじがとおる", note: "意味: 話や考え方に道理があり一貫していること" },
-  { text: "釘を刺す", reading: "くぎをさす", note: "意味: 後で問題が起きないよう念を押しておくこと" },
-  { text: "匙を投げる", reading: "さじをなげる", note: "意味: 見込みがないとあきらめること" },
-  { text: "図に乗る", reading: "ずにのる", note: "意味: 物事がうまくいって調子に乗ること" },
-  { text: "棚に上げる", reading: "たなにあげる", note: "意味: 自分に都合の悪いことをわざと問題にせず放っておくこと" },
-  { text: "折り紙をつける", reading: "おりがみをつける", note: "意味: 確かなものであると保証すること" },
-  { text: "拍車をかける", reading: "はくしゃをかける", note: "意味: 物事の進行を一段と速めること" },
-  { text: "泡を食う", reading: "あわをくう", note: "意味: 突然のことに驚きあわてること" },
-  { text: "一目置く", reading: "いちもくおく", note: "意味: 相手の実力を認めて敬意を払うこと" },
-  { text: "埒が明かない", reading: "らちがあかない", note: "意味: 物事に決着がつかず先に進まないこと" },
-  { text: "高を括る", reading: "たかをくくる", note: "意味: 大したことはないと甘く見くびること" },
-  { text: "水泡に帰す", reading: "すいほうにきす", note: "意味: 努力した成果が全て無駄になること" },
-  { text: "二の足を踏む", reading: "にのあしをふむ", note: "意味: ためらって決断できずにいること" },
-  { text: "目を皿にする", reading: "めをさらにする", note: "意味: 驚いたり探したりして目を大きく見開くこと" },
-  { text: "花は咲く前が一番苦しい", reading: "はなはさくまえがいちばんくるしい" },
-  { text: "星は闇の中でこそ輝く", reading: "ほしはやみのなかでこそかがやく" },
-  { text: "風が吹かねば凧は揚がらない", reading: "かぜがふかねばたこはあがらない" },
-  { text: "波は寄せては返し、また寄せる", reading: "なみはよせてはかえしまたよせる" },
-  { text: "山は登る者にしか景色を見せない", reading: "やまはのぼるものにしかけしきをみせない" },
-  { text: "種を蒔かねば花は咲かない", reading: "たねをまかねばはなはさかない" },
-  { text: "川は流れを止めない", reading: "かわはながれをとめない" },
-  { text: "太陽は雲の向こうでも輝いている", reading: "たいようはくものむこうでもかがやいている" },
-  { text: "石も磨けば光る", reading: "いしもみがけばひかる" },
-  { text: "木は風に揺れても根を張り続ける", reading: "きはかぜにゆれてもねをはりつづける" },
-  { text: "氷はいつか必ず溶ける", reading: "こおりはいつかかならずとける" },
-  { text: "雨の後には虹がかかる", reading: "あめのあとにはにじがかかる" },
-  { text: "夜が明けない朝はない", reading: "よがあけないあさはない" },
-  { text: "蕾はやがて花になる", reading: "つぼみはやがてはなになる" },
-  { text: "一粒の種が森になる", reading: "ひとつぶのたねがもりになる" },
-  { text: "小川もやがて大河になる", reading: "おがわもやがてたいがになる" },
-  { text: "星々は暗い夜にこそ輝く", reading: "ほしぼしはくらいよるにこそかがやく" },
-  { text: "風は止んでもまた吹く", reading: "かぜはやんでもまたふく" },
-  { text: "涙は心の雨、笑顔は心の晴れ間", reading: "なみだはこころのあめえがおはこころのはれま" },
-  { text: "心の扉は自分でしか開けない", reading: "こころのとびらはじぶんでしかあけられない" },
-  { text: "一歩は小さくても方向は大きい", reading: "いっぽはちいさくてもほうこうはおおきい" },
-  { text: "諦めた場所がその人の限界になる", reading: "あきらめたばしょがそのひとのげんかいになる" },
-  { text: "迷わず進めば道はできる", reading: "まよわずすすめばみちはできる" },
-  { text: "焦らずゆっくり歩めばいい", reading: "あせらずゆっくりあゆめばいい" },
-  { text: "心の中の火種を絶やすな", reading: "こころのなかのひだねをたやすな" },
-  { text: "挑戦しない者に失敗はないが成長もない", reading: "ちょうせんしないものにしっぱいはないがせいちょうもない" },
-  { text: "昨日の涙が今日の強さになる", reading: "きのうのなみだがきょうのつよさになる" },
-  { text: "弱さを見せられる人こそ強い", reading: "よわさをみせられるひとこそつよい" },
-  { text: "誰かの為に流す涙は美しい", reading: "だれかのためにながすなみだはうつくしい" },
-  { text: "心が変われば景色も変わる", reading: "こころがかわればけしきもかわる" },
-  { text: "信じる力が奇跡を呼ぶ", reading: "しんじるちからがきせきをよぶ" },
-  { text: "一人の勇気が皆を動かす", reading: "ひとりのゆうきがみんなをうごかす" },
-  { text: "小さな親切が大きな輪になる", reading: "ちいさなしんせつがおおきなわになる" },
-  { text: "明日を照らすのは今日の一歩だ", reading: "あすをてらすのはきょうのいっぽだ" },
-  { text: "心の中の子どもを大切にせよ", reading: "こころのなかのこどもをたいせつにせよ" },
-  { text: "涙を流せる人は誰かを想える人だ", reading: "なみだをながせるひとはだれかをおもえるひとだ" },
-  { text: "諦めない限り負けではない", reading: "あきらめないかぎりまけではない" },
-  { text: "心が折れそうな日こそ深呼吸をせよ", reading: "こころがおれそうなひこそしんこきゅうをせよ" },
-  { text: "花を咲かせるのは種ではなく努力だ", reading: "はなをさかせるのはたねではなくどりょくだ" },
-  { text: "生きることは学び続けることだ", reading: "いきることはまなびつづけることだ" },
-  { text: "迷った道の先にこそ発見がある", reading: "まよったみちのさきにこそはっけんがある" },
-  { text: "心の炎は自分でしか灯せない", reading: "こころのほのおはじぶんでしかともせない" },
-  { text: "誰かの笑顔が自分の力になる", reading: "だれかのえがおがじぶんのちからになる" },
-  { text: "過去を悔やむ時間で未来を描け", reading: "かこをくやむじかんでみらいをえがけ" },
-  { text: "一日を丁寧に生きれば人生は輝く", reading: "いちにちをていねいにいきればじんせいはかがやく" },
-  { text: "心の中の海はどこまでも広い", reading: "こころのなかのうみはどこまでもひろい" },
-  { text: "涙も夢も本気だからこそ生まれる", reading: "なみだもゆめもほんきだからこそうまれる" },
-  { text: "迷いながら進む姿こそ美しい", reading: "まよいながらすすむすがたこそうつくしい" },
-  { text: "心が定まれば足取りも軽くなる", reading: "こころがさだまればあしどりもかるくなる" },
-  { text: "一つの努力が誰かの希望になる", reading: "ひとつのどりょくがだれかのきぼうになる" },
-  { text: "明日はまだ何色にも染まっていない", reading: "あすはまだなにいろにもそまっていない" },
-  { text: "心の声こそ最も正直な道しるべだ", reading: "こころのこえこそもっともしょうじきなみちしるべだ" },
-  { text: "涙の後の笑顔は誰よりも美しい", reading: "なみだのあとのえがおはだれよりもうつくしい" },
-  { text: "挑戦する背中は誰かの憧れになる", reading: "ちょうせんするせなかはだれかのあこがれになる" },
-  { text: "心を込めた一歩は必ず届く", reading: "こころをこめたいっぽはかならずとどく" },
-  { text: "迷いは成長への入り口だ", reading: "まよいはせいちょうへのいりぐちだ" },
-  { text: "一日の始まりに感謝を込めよ", reading: "いちにちのはじまりにかんしゃをこめよ" },
-  { text: "心の中の灯台になれ", reading: "こころのなかのとうだいになれ" },
-  { text: "涙は次の一歩への準備だ", reading: "なみだはつぎのいっぽへのじゅんびだ" },
-  { text: "誰かの為に生きる時、人は強くなる", reading: "だれかのためにいきるときひとはつよくなる" },
-  { text: "心が満たされれば道も見える", reading: "こころがみたされればみちもみえる" },
-  { text: "一瞬の決断が人生を変える", reading: "いっしゅんのけつだんがじんせいをかえる" },
-  { text: "迷いを恐れず一歩を踏み出せ", reading: "まよいをおそれずいっぽをふみだせ" },
-  { text: "心の温度が人を動かす", reading: "こころのおんどがひとをうごかす" },
-  { text: "涙の数だけ人生は深くなる", reading: "なみだのかずだけじんせいはふかくなる" },
-  { text: "誰かの一言が心の支えになる", reading: "だれかのひとことがこころのささえになる" },
-  { text: "心を開けば景色も開ける", reading: "こころをひらけばけしきもひらける" },
-  { text: "一つの挑戦が世界を広げる", reading: "ひとつのちょうせんがせかいをひろげる" },
-  { text: "迷いの中にこそ本当の自分がいる", reading: "まよいのなかにこそほんとうのじぶんがいる" },
-  { text: "心の中の羅針盤を信じよ", reading: "こころのなかのらしんばんをしんじよ" },
-  { text: "涙も笑顔も同じ心から生まれる", reading: "なみだもえがおもおなじこころからうまれる" },
-  { text: "誰かを支える手は自分をも支える", reading: "だれかをささえるてはじぶんをもささえる" },
-  { text: "心が折れない限り道は続く", reading: "こころがおれないかぎりみちはつづく" },
-  { text: "一つの言葉が誰かの人生を変える", reading: "ひとつのことばがだれかのじんせいをかえる" },
-  { text: "迷いながらも歩みを止めるな", reading: "まよいながらもあゆみをとめるな" },
-  { text: "心の中の種はいつか花になる", reading: "こころのなかのたねはいつかはなになる" },
-  { text: "涙は決して弱さの証ではない", reading: "なみだはけっしてよわさのあかしではない" },
-  { text: "誰かの背中を押せる人になれ", reading: "だれかのせなかをおせるひとになれ" },
-  { text: "心が定まれば迷いは消える", reading: "こころがさだまればまよいはきえる" },
-  { text: "一歩踏み出した者だけが景色を見る", reading: "いっぽふみだしたものだけがけしきをみる" },
-  { text: "迷いは前に進んでいる証だ", reading: "まよいはまえにすすんでいるあかしだ" },
-  { text: "心の温もりは誰かを救う", reading: "こころのぬくもりはだれかをすくう" },
-  { text: "涙は流れても心は折れない", reading: "なみだはながれてもこころはおれない" },
-  { text: "誰かの夢を笑うな、応援せよ", reading: "だれかのゆめをわらうなおうえんせよ" },
-  { text: "心の中の希望を消すな", reading: "こころのなかのきぼうをけすな" },
-  { text: "一日を悔いなく生きれば十分だ", reading: "いちにちをくいなくいきればじゅうぶんだ" },
-  { text: "迷いの先に見えるものこそ真実だ", reading: "まよいのさきにみえるものこそしんじつだ" },
-  { text: "心の芯が強い人はしなやかだ", reading: "こころのしんがつよいひとはしなやかだ" },
-  { text: "涙も汗も同じだけ価値がある", reading: "なみだもあせもおなじだけかちがある" },
-  { text: "誰かの為に頑張れる自分を誇れ", reading: "だれかのためにがんばれるじぶんをほこれ" },
-  { text: "心が折れそうな時こそ仲間を頼れ", reading: "こころがおれそうなときこそなかまをたよれ" },
-  { text: "一つの出会いが世界を変えることもある", reading: "ひとつのであいがせかいをかえることもある" },
-  { text: "迷いを乗り越えた先に自分がいる", reading: "まよいをのりこえたさきにじぶんがいる" },
-  { text: "心の中の炎を絶やさず生きよ", reading: "こころのなかのほのおをたやさずいきよ" },
-  { text: "涙も笑顔も明日への糧になる", reading: "なみだもえがおもあすへのかてになる" },
-  { text: "誰かの為に流した汗は無駄にならない", reading: "だれかのためにながしたあせはむだにならない" },
-  { text: "心が広ければ許せることも増える", reading: "こころがひろければゆるせることもふえる" },
-  { text: "一つの決意が明日を照らす", reading: "ひとつのけついがあすをてらす" },
-  { text: "迷いながらも進む勇気を持て", reading: "まよいながらもすすむゆうきをもて" },
-  { text: "心の中の灯りを絶やすな", reading: "こころのなかのあかりをたやすな" },
+// ことわざ・故事成語のみ。text=表記, reading=よみ(ひらがな), meaning=意味。
+const PROVERBS = [
+  { text: "石の上にも三年", reading: "いしのうえにもさんねん", meaning: "つらくても辛抱強く続ければやがて成果が得られるということ" },
+  { text: "七転び八起き", reading: "ななころびやおき", meaning: "何度失敗してもくじけずに立ち上がって努力すること" },
+  { text: "急がば回れ", reading: "いそがばまわれ", meaning: "急ぐときこそ危険な近道より安全確実な道を選べということ" },
+  { text: "塵も積もれば山となる", reading: "ちりもつもればやまとなる", meaning: "わずかなものでも積み重なれば大きなものになるということ" },
+  { text: "継続は力なり", reading: "けいぞくはちからなり", meaning: "物事を続けることが大きな力や成果につながるということ" },
+  { text: "初心忘るべからず", reading: "しょしんわするべからず", meaning: "始めた頃の真剣な気持ちを忘れてはならないという教え" },
+  { text: "案ずるより産むが易し", reading: "あんずるよりうむがやすし", meaning: "心配するよりも実際にやってみると案外たやすいものだということ" },
+  { text: "井の中の蛙大海を知らず", reading: "いのなかのかわずたいかいをしらず", meaning: "狭い知識にとらわれて広い世界を知らないことのたとえ" },
+  { text: "猿も木から落ちる", reading: "さるもきからおちる", meaning: "その道の名人でも時には失敗することがあるというたとえ" },
+  { text: "花より団子", reading: "はなよりだんご", meaning: "風流よりも実際の利益を優先することのたとえ" },
+  { text: "転ばぬ先の杖", reading: "ころばぬさきのつえ", meaning: "失敗しないよう前もって用心しておくことの大切さ" },
+  { text: "石橋を叩いて渡る", reading: "いしばしをたたいてわたる", meaning: "用心の上にも用心を重ねて慎重に事を行うことのたとえ" },
+  { text: "千里の道も一歩から", reading: "せんりのみちもいっぽから", meaning: "大事業もまず身近な小さな一歩から始まるということ" },
+  { text: "三人寄れば文殊の知恵", reading: "さんにんよればもんじゅのちえ", meaning: "凡人でも三人集まって相談すれば良い知恵が出るということ" },
+  { text: "早起きは三文の徳", reading: "はやおきはさんもんのとく", meaning: "早起きをすれば何かしら良いことがあるということ" },
+  { text: "灯台下暗し", reading: "とうだいもとくらし", meaning: "身近なことはかえって気づきにくいものだというたとえ" },
+  { text: "二兎を追う者は一兎をも得ず", reading: "にとをおうものはいっとをもえず", meaning: "欲張って二つを狙うと結局どちらも得られないということ" },
+  { text: "好きこそものの上手なれ", reading: "すきこそもののじょうずなれ", meaning: "好きなことは熱心に取り組むので自然に上達するということ" },
+  { text: "猫に小判", reading: "ねこにこばん", meaning: "価値のわからない者に貴重なものを与えても無駄なことのたとえ" },
+  { text: "馬の耳に念仏", reading: "うまのみみにねんぶつ", meaning: "いくら意見しても効き目がなく無駄であることのたとえ" },
+  { text: "蛇の道は蛇", reading: "じゃのみちはへび", meaning: "同類の者はその方面の事情をよく知っているというたとえ" },
+  { text: "木を見て森を見ず", reading: "きをみてもりをみず", meaning: "細部にとらわれて全体を見失うことのたとえ" },
+  { text: "三日坊主", reading: "みっかぼうず", meaning: "飽きやすくて物事が長続きしないこと" },
+  { text: "二階から目薬", reading: "にかいからめぐすり", meaning: "もどかしく思うように効果が上がらないことのたとえ" },
+  { text: "河童の川流れ", reading: "かっぱのかわながれ", meaning: "名人でも時には失敗することがあるというたとえ" },
+  { text: "泣き面に蜂", reading: "なきつらにはち", meaning: "不運の上にさらに不運が重なることのたとえ" },
+  { text: "棚からぼた餅", reading: "たなからぼたもち", meaning: "思いがけない幸運が舞い込むことのたとえ" },
+  { text: "虎の威を借る狐", reading: "とらのいをかるきつね", meaning: "権力者の威勢を頼んで威張る小者のたとえ" },
+  { text: "立つ鳥跡を濁さず", reading: "たつとりあとをにごさず", meaning: "立ち去る者は後始末をきれいにすべきだという教え" },
+  { text: "出る杭は打たれる", reading: "でるくいはうたれる", meaning: "頭角を現す者は周囲から憎まれ非難されやすいということ" },
+  { text: "亀の甲より年の功", reading: "かめのこうよりとしのこう", meaning: "長年積んだ経験の知恵は貴重で尊いということ" },
+  { text: "触らぬ神に祟りなし", reading: "さわらぬかみにたたりなし", meaning: "関わり合わなければ災いを招くこともないということ" },
+  { text: "医者の不養生", reading: "いしゃのふようじょう", meaning: "正しいと分かっていながら自分では実行しないことのたとえ" },
+  { text: "犬も歩けば棒に当たる", reading: "いぬもあるけばぼうにあたる", meaning: "行動すれば思わぬ幸運や災難に出会うことがあるということ" },
+  { text: "骨折り損のくたびれ儲け", reading: "ほねおりぞんのくたびれもうけ", meaning: "苦労するばかりで少しも成果が上がらないこと" },
+  { text: "隣の芝生は青い", reading: "となりのしばふはあおい", meaning: "他人のものは自分のものより良く見えるということ" },
+  { text: "天は自ら助くる者を助く", reading: "てんはみずからたすくるものをたすく", meaning: "人に頼らず自ら努力する者に幸運は訪れるということ" },
+  { text: "苦しい時の神頼み", reading: "くるしいときのかみだのみ", meaning: "困った時だけ神仏や人に助けを求めることのたとえ" },
+  { text: "一寸先は闇", reading: "いっすんさきはやみ", meaning: "ほんの少し先のことさえ何が起こるか分からないということ" },
+  { text: "火のない所に煙は立たぬ", reading: "ひのないところにけむりはたたぬ", meaning: "根拠がなければ噂は立たないものだということ" },
+  { text: "悪銭身に付かず", reading: "あくせんみにつかず", meaning: "不当に得た金は無駄に使われすぐになくなるということ" },
+  { text: "笑う門には福来る", reading: "わらうかどにはふくきたる", meaning: "いつも笑いの絶えない家には自然と幸福が訪れるということ" },
+  { text: "郷に入っては郷に従え", reading: "ごうにいってはごうにしたがえ", meaning: "その土地の習慣や流儀に従うのがよいという教え" },
+  { text: "弘法にも筆の誤り", reading: "こうぼうにもふでのあやまり", meaning: "どんな名人でも時には失敗することがあるというたとえ" },
+  { text: "蛙の子は蛙", reading: "かえるのこはかえる", meaning: "子は親に似るもので凡人の子は凡人だというたとえ" },
+  { text: "情けは人の為ならず", reading: "なさけはひとのためならず", meaning: "人への情けは巡り巡って自分に良い報いとして返るということ" },
+  { text: "論より証拠", reading: "ろんよりしょうこ", meaning: "あれこれ議論するより証拠を示す方が確かだということ" },
+  { text: "蓼食う虫も好き好き", reading: "たでくうむしもすきずき", meaning: "人の好みは様々で一概には言えないということ" },
+  { text: "三度目の正直", reading: "さんどめのしょうじき", meaning: "一度二度失敗しても三度目にはうまくいくものだということ" },
+  { text: "二度あることは三度ある", reading: "にどあることはさんどある", meaning: "物事は繰り返し起こりやすいので用心せよということ" },
+  { text: "待てば海路の日和あり", reading: "まてばかいろのひよりあり", meaning: "焦らず待っていればいつか良い機会が巡ってくるということ" },
+  { text: "急いては事を仕損じる", reading: "せいてはことをしそんじる", meaning: "焦って物事を行うとかえって失敗しやすいということ" },
+  { text: "悪事千里を走る", reading: "あくじせんりをはしる", meaning: "悪い行いや評判はたちまち世間に知れ渡るということ" },
+  { text: "虎穴に入らずんば虎子を得ず", reading: "こけつにいらずんばこじをえず", meaning: "危険を冒さなければ大きな成果は得られないということ" },
+  { text: "短気は損気", reading: "たんきはそんき", meaning: "短気を起こすと結局は自分が損をするということ" },
+  { text: "時は金なり", reading: "ときはかねなり", meaning: "時間はお金のように貴重なので無駄にするなという教え" },
+  { text: "鬼に金棒", reading: "おににかなぼう", meaning: "ただでさえ強いものにさらに強さが加わることのたとえ" },
+  { text: "豚に真珠", reading: "ぶたにしんじゅ", meaning: "価値のわからない者に貴重なものを与えても無駄なことのたとえ" },
+  { text: "濡れ手で粟", reading: "ぬれてであわ", meaning: "苦労せずに多くの利益を得ることのたとえ" },
+  { text: "弱り目に祟り目", reading: "よわりめにたたりめ", meaning: "困っている時にさらに悪いことが重なることのたとえ" },
+  { text: "一寸の虫にも五分の魂", reading: "いっすんのむしにもごぶのたましい", meaning: "どんなに小さく弱い者にも相応の意地や誇りがあるということ" },
+  { text: "火中の栗を拾う", reading: "かちゅうのくりをひろう", meaning: "他人の利益のためにあえて危険を冒すことのたとえ" },
+  { text: "焼け石に水", reading: "やけいしにみず", meaning: "わずかな援助や努力では効き目がないことのたとえ" },
+  { text: "身から出た錆", reading: "みからでたさび", meaning: "自分の犯した過ちが原因で自分が苦しむことのたとえ" },
+  { text: "目から鱗が落ちる", reading: "めからうろこがおちる", meaning: "きっかけを得て急に物事の真相がわかるようになること" },
+  { text: "頭隠して尻隠さず", reading: "あたまかくしてしりかくさず", meaning: "欠点の一部だけ隠して全部隠したつもりでいる愚かさのたとえ" },
+  { text: "大は小を兼ねる", reading: "だいはしょうをかねる", meaning: "大きいものは小さいものの代用にもなり役立つということ" },
+  { text: "老いては子に従え", reading: "おいてはこにしたがえ", meaning: "年をとったら万事を子に任せて従うのがよいという教え" },
+  { text: "名は体を表す", reading: "なはたいをあらわす", meaning: "名前はそのものの実体をよく表しているということ" },
+  { text: "三つ子の魂百まで", reading: "みつごのたましいひゃくまで", meaning: "幼い頃の性質は年をとっても変わらないということ" },
+  { text: "塞翁が馬", reading: "さいおうがうま", meaning: "人生の幸不幸は予測できず簡単には判断できないということ" },
+  { text: "覆水盆に返らず", reading: "ふくすいぼんにかえらず", meaning: "一度してしまったことは取り返しがつかないということ" },
+  { text: "百聞は一見に如かず", reading: "ひゃくぶんはいっけんにしかず", meaning: "何度も聞くより一度実際に見る方がよくわかるということ" },
+  { text: "良薬は口に苦し", reading: "りょうやくはくちににがし", meaning: "ためになる忠告ほど聞くのがつらいものだということ" },
+  { text: "為せば成る", reading: "なせばなる", meaning: "やる気になって行えば物事は必ず成し遂げられるということ" },
+  { text: "蒔かぬ種は生えぬ", reading: "まかぬたねははえぬ", meaning: "何もしなければ良い結果は得られないということ" },
+  { text: "縁の下の力持ち", reading: "えんのしたのちからもち", meaning: "人目につかない所で人のために努力し支える人のこと" },
+  { text: "雨降って地固まる", reading: "あめふってじかたまる", meaning: "もめ事の後はかえって物事が安定して良くなるということ" },
+  { text: "明日は明日の風が吹く", reading: "あしたはあしたのかぜがふく", meaning: "先を心配しても仕方がなく、なるようになるということ" },
+  { text: "楽あれば苦あり", reading: "らくあればくあり", meaning: "楽しいことの後には苦しいことがあるものだということ" },
+  { text: "苦あれば楽あり", reading: "くあればらくあり", meaning: "苦しいことの後には必ず楽しいことがあるということ" },
+  { text: "実るほど頭を垂れる稲穂かな", reading: "みのるほどこうべをたれるいなほかな", meaning: "学問や徳を積んだ立派な人ほど謙虚になるというたとえ" },
+  { text: "蟹は甲羅に似せて穴を掘る", reading: "かにはこうらににせてあなをほる", meaning: "人は自分の身分や能力に応じた考えや行動をするということ" },
+  { text: "鶴は千年亀は万年", reading: "つるはせんねんかめはまんねん", meaning: "長寿でめでたいことのたとえ" },
+  { text: "鴨が葱を背負って来る", reading: "かもがねぎをしょってくる", meaning: "好都合なことが重なって起こることのたとえ" },
+  { text: "海老で鯛を釣る", reading: "えびでたいをつる", meaning: "わずかな元手で大きな利益を得ることのたとえ" },
+  { text: "腐っても鯛", reading: "くさってもたい", meaning: "本当に良いものは多少悪くなってもそれなりの値打ちを保つということ" },
+  { text: "魚心あれば水心", reading: "うおごころあればみずごころ", meaning: "相手が好意を示せばこちらも好意で応じる気になるということ" },
+  { text: "溺れる者は藁をも掴む", reading: "おぼれるものはわらをもつかむ", meaning: "困り果てると頼りにならないものにまで頼ろうとすることのたとえ" },
+  { text: "能ある鷹は爪を隠す", reading: "のうあるたかはつめをかくす", meaning: "実力のある者はむやみにそれを誇示しないということ" },
+  { text: "鳶が鷹を生む", reading: "とびがたかをうむ", meaning: "平凡な親から優れた子が生まれることのたとえ" },
+  { text: "雀百まで踊り忘れず", reading: "すずめひゃくまでおどりわすれず", meaning: "若い時に身についた習慣は年をとっても直らないということ" },
+  { text: "禍福は糾える縄の如し", reading: "かふくはあざなえるなわのごとし", meaning: "幸福と不幸は縄のように代わる代わる訪れるということ" },
+  { text: "歳月人を待たず", reading: "さいげつひとをまたず", meaning: "月日は人の都合に関係なく過ぎ去っていくということ" },
+  { text: "光陰矢の如し", reading: "こういんやのごとし", meaning: "月日の経つのは矢のように早いということ" },
+  { text: "少年老い易く学成り難し", reading: "しょうねんおいやすくがくなりがたし", meaning: "月日は早く過ぎ学問はなかなか成就しないという戒め" },
+  { text: "画竜点睛を欠く", reading: "がりょうてんせいをかく", meaning: "最後の肝心な仕上げが欠けていることのたとえ" },
+  { text: "羹に懲りて膾を吹く", reading: "あつものにこりてなますをふく", meaning: "一度の失敗に懲りて必要以上に用心することのたとえ" },
+  { text: "前車の轍を踏む", reading: "ぜんしゃのてつをふむ", meaning: "前の人と同じ失敗を繰り返すことのたとえ" },
+  { text: "呉越同舟", reading: "ごえつどうしゅう", meaning: "仲の悪い者同士が同じ場所や境遇に居合わせること" },
+  { text: "漁夫の利", reading: "ぎょふのり", meaning: "両者が争う隙に第三者が利益を横取りすること" },
+  { text: "五十歩百歩", reading: "ごじっぽひゃっぽ", meaning: "少しの違いはあっても本質的には同じであることのたとえ" },
+  { text: "四面楚歌", reading: "しめんそか", meaning: "周囲がすべて敵で孤立無援であること" },
+  { text: "背水の陣", reading: "はいすいのじん", meaning: "逃げ場をなくし決死の覚悟で事に当たること" },
+  { text: "臥薪嘗胆", reading: "がしんしょうたん", meaning: "目的を達成するため長い間苦労に耐え忍ぶこと" },
+  { text: "蛇足", reading: "だそく", meaning: "なくてもよい余計な付け足しのこと" },
+  { text: "矛盾", reading: "むじゅん", meaning: "二つの物事のつじつまが合わないこと" },
+  { text: "五里霧中", reading: "ごりむちゅう", meaning: "手がかりがなく方針や見込みの立たないこと" },
+  { text: "杞憂", reading: "きゆう", meaning: "起こりもしないことをあれこれ心配すること" },
+  { text: "蛍雪の功", reading: "けいせつのこう", meaning: "苦労して勉学に励みその成果を上げること" },
+  { text: "温故知新", reading: "おんこちしん", meaning: "昔のことを研究して新しい知識や道理を得ること" },
+  { text: "一期一会", reading: "いちごいちえ", meaning: "一生に一度の出会いを大切にすべきだという心得" },
+  { text: "一石二鳥", reading: "いっせきにちょう", meaning: "一つの行為で二つの利益を得ることのたとえ" },
+  { text: "竜頭蛇尾", reading: "りゅうとうだび", meaning: "始めは勢いが盛んで終わりは振るわないことのたとえ" },
+  { text: "油断大敵", reading: "ゆだんたいてき", meaning: "油断は失敗のもとで最も恐ろしい敵だという戒め" },
+  { text: "玉磨かざれば光なし", reading: "たまみがかざればひかりなし", meaning: "素質があっても学び磨かなければ立派にならないという教え" },
+  { text: "学問に王道なし", reading: "がくもんにおうどうなし", meaning: "学問を修めるのに楽な近道はないということ" },
+  { text: "忠言耳に逆らう", reading: "ちゅうげんみみにさからう", meaning: "ためになる忠告ほど素直に聞き入れにくいということ" },
+  { text: "河童に水練", reading: "かっぱにすいれん", meaning: "よく知り尽くしている人にそのことを教える愚かさのたとえ" },
+  { text: "釈迦に説法", reading: "しゃかにせっぽう", meaning: "知り尽くしている人に教えを説く愚かさのたとえ" },
+  { text: "対岸の火事", reading: "たいがんのかじ", meaning: "自分には関係がなく痛痒を感じないことのたとえ" },
+  { text: "火に油を注ぐ", reading: "ひにあぶらをそそぐ", meaning: "勢いの盛んなものにさらに勢いを加えることのたとえ" },
+  { text: "飛んで火に入る夏の虫", reading: "とんでひにいるなつのむし", meaning: "自ら進んで危険や災難に飛び込むことのたとえ" },
+  { text: "瓜の蔓に茄子はならぬ", reading: "うりのつるになすびはならぬ", meaning: "平凡な親から非凡な子は生まれないというたとえ" },
+  { text: "口は禍の門", reading: "くちはわざわいのかど", meaning: "不用意な発言が災いを招くもとになるという戒め" },
+  { text: "口は災いの元", reading: "くちはわざわいのもと", meaning: "うっかりした言葉が災いを招くもとになるという戒め" },
+  { text: "沈黙は金雄弁は銀", reading: "ちんもくはきんゆうべんはぎん", meaning: "多くを語らないことは雄弁にまさる価値があるということ" },
+  { text: "言わぬが花", reading: "いわぬがはな", meaning: "はっきり言わない方が趣があり奥ゆかしいということ" },
+  { text: "出藍の誉れ", reading: "しゅつらんのほまれ", meaning: "弟子が師よりも優れた才能を発揮することのたとえ" },
+  { text: "青は藍より出でて藍より青し", reading: "あおはあいよりいでてあいよりあおし", meaning: "弟子が師よりも優れることのたとえ" },
+  { text: "桃栗三年柿八年", reading: "ももくりさんねんかきはちねん", meaning: "何事も成果を得るには相応の年月が必要だということ" },
+  { text: "一年の計は元旦にあり", reading: "いちねんのけいはがんたんにあり", meaning: "何事も最初にしっかり計画を立てることが大切だということ" },
+  { text: "果報は寝て待て", reading: "かほうはねてまて", meaning: "幸運は焦らず自然に訪れるのを待つのがよいということ" },
+  { text: "人事を尽くして天命を待つ", reading: "じんじをつくしててんめいをまつ", meaning: "全力を尽くしたら後は天の定めに任せるということ" },
+  { text: "弘法筆を選ばず", reading: "こうぼうふでをえらばず", meaning: "名人は道具の良し悪しに関わらず立派な仕事をするということ" },
+  { text: "下手の横好き", reading: "へたのよこずき", meaning: "上手でもないのにそのことが好きで熱心なこと" },
+  { text: "虻蜂取らず", reading: "あぶはちとらず", meaning: "欲張って両方を狙い結局どちらも得られないことのたとえ" },
+  { text: "秋の日は釣瓶落とし", reading: "あきのひはつるべおとし", meaning: "秋の日暮れは非常に早いことのたとえ" },
+  { text: "冬来たりなば春遠からじ", reading: "ふゆきたりなばはるとおからじ", meaning: "つらい時期を耐えれば必ず良い時が来るということ" },
+  { text: "金は天下の回り物", reading: "かねはてんかのまわりもの", meaning: "お金は一所にとどまらず世の中を巡っていくものだということ" },
+  { text: "安物買いの銭失い", reading: "やすものがいのぜにうしない", meaning: "安価なものは品質が悪くかえって損をするということ" },
+  { text: "損して得取れ", reading: "そんしてとくとれ", meaning: "目先の損より先の大きな利益を見据えて行動せよということ" },
+  { text: "一銭を笑う者は一銭に泣く", reading: "いっせんをわらうものはいっせんになく", meaning: "わずかな金を粗末にする者はその金で苦労するということ" },
+  { text: "親の心子知らず", reading: "おやのこころこしらず", meaning: "親の深い思いを子はなかなか理解できないということ" },
+  { text: "子は鎹", reading: "こはかすがい", meaning: "子の存在が夫婦の仲をつなぎとめる役割を果たすということ" },
+  { text: "可愛い子には旅をさせよ", reading: "かわいいこにはたびをさせよ", meaning: "子は甘やかさずあえて苦労を経験させるのがよいという教え" },
+  { text: "紺屋の白袴", reading: "こうやのしろばかま", meaning: "他人のためには忙しく働くが自分のことは疎かにしがちなこと" },
+  { text: "遠くの親戚より近くの他人", reading: "とおくのしんせきよりちかくのたにん", meaning: "いざという時は遠い親戚より近くの他人が頼りになるということ" },
+  { text: "類は友を呼ぶ", reading: "るいはともをよぶ", meaning: "似た者同士は自然と集まり親しくなるということ" },
+  { text: "朱に交われば赤くなる", reading: "しゅにまじわればあかくなる", meaning: "人は付き合う相手や環境に感化されるということ" },
+  { text: "生き馬の目を抜く", reading: "いきうまのめをぬく", meaning: "油断もすきもなく素早く抜け目なく利を得ることのたとえ" },
+  { text: "病は気から", reading: "やまいはきから", meaning: "病気は気の持ちようで悪くも良くもなるということ" },
+  { text: "命あっての物種", reading: "いのちあってのものだね", meaning: "何事も命があってこそ成り立つものだということ" },
+  { text: "命長ければ恥多し", reading: "いのちながければはじおおし", meaning: "長生きするとその分恥をかくことも多くなるということ" },
+  { text: "栴檀は双葉より芳し", reading: "せんだんはふたばよりかんばし", meaning: "大成する人は幼い頃から優れた片鱗を見せるということ" },
+  { text: "瓢箪から駒が出る", reading: "ひょうたんからこまがでる", meaning: "意外なところから思いがけない結果が出ることのたとえ" },
+  { text: "後悔先に立たず", reading: "こうかいさきにたたず", meaning: "事が済んだ後で後悔しても取り返しがつかないということ" },
+  { text: "盛者必衰", reading: "じょうしゃひっすい", meaning: "勢いの盛んな者もいつか必ず衰えるということ" },
+  { text: "驕る平家は久しからず", reading: "おごるへいけはひさしからず", meaning: "権勢に驕り高ぶる者は長く続かないというたとえ" },
+  { text: "腹八分目に医者いらず", reading: "はらはちぶんめにいしゃいらず", meaning: "食事を腹八分目にしておけば健康でいられるということ" },
+  { text: "習うより慣れよ", reading: "ならうよりなれよ", meaning: "人に教わるより自ら経験を重ねる方が身につくということ" },
+  { text: "経験に勝る教師なし", reading: "けいけんにまさるきょうしなし", meaning: "実際の経験ほど優れた教えはないということ" },
+  { text: "虎の尾を踏む", reading: "とらのおをふむ", meaning: "非常に危険なことを行うことのたとえ" },
+  { text: "備えあれば憂いなし", reading: "そなえあればうれいなし", meaning: "普段から備えておけばいざという時に心配がないということ" },
+  { text: "危ない橋を渡る", reading: "あぶないはしをわたる", meaning: "危険を承知の上で物事を行うことのたとえ" },
+  { text: "君子危うきに近寄らず", reading: "くんしあやうきにちかよらず", meaning: "徳のある人は自ら危険に近づかないということ" },
+  { text: "藪をつついて蛇を出す", reading: "やぶをつついてへびをだす", meaning: "余計なことをして自ら災いを招くことのたとえ" },
+  { text: "寝耳に水", reading: "ねみみにみず", meaning: "突然の出来事に非常に驚くことのたとえ" },
+  { text: "青天の霹靂", reading: "せいてんのへきれき", meaning: "突然起こる思いがけない大事件のたとえ" },
+  { text: "人の振り見て我が振り直せ", reading: "ひとのふりみてわがふりなおせ", meaning: "他人の言動を見て自分の行いを反省し改めよという教え" },
+  { text: "他山の石", reading: "たざんのいし", meaning: "他人のつまらない言動も自分の修養の助けになるということ" },
+  { text: "隗より始めよ", reading: "かいよりはじめよ", meaning: "大事を成すにはまず身近なことから着手せよという教え" },
+  { text: "雨だれ石を穿つ", reading: "あまだれいしをうがつ", meaning: "小さな努力でも根気よく続ければ大きな成果を得るということ" },
+  { text: "鉄は熱いうちに打て", reading: "てつはあついうちにうて", meaning: "物事は好機を逃さず適切な時機に行うべきだという教え" },
+  { text: "思い立ったが吉日", reading: "おもいたったがきちじつ", meaning: "何かをしようと思ったらすぐ実行するのがよいということ" },
+  { text: "善は急げ", reading: "ぜんはいそげ", meaning: "良いと思ったことはためらわずすぐ実行せよという教え" },
+  { text: "過ぎたるは猶及ばざるが如し", reading: "すぎたるはなおおよばざるがごとし", meaning: "何事もやり過ぎは足りないのと同じくよくないということ" },
+  { text: "転石苔を生ぜず", reading: "てんせきこけをしょうぜず", meaning: "職や住居を転々と変える人は大成しないというたとえ" },
+  { text: "石橋を叩いても渡らない", reading: "いしばしをたたいてもわたらない", meaning: "用心深すぎてかえって行動できないことのたとえ" },
+  { text: "医者と味噌は古いほどよい", reading: "いしゃとみそはふるいほどよい", meaning: "経験を積んだ医者や熟成した味噌は良いというたとえ" },
+  { text: "老いの一徹", reading: "おいのいってつ", meaning: "年をとると考えを変えず頑固になりやすいこと" },
+  { text: "桜切る馬鹿梅切らぬ馬鹿", reading: "さくらきるばかうめきらぬばか", meaning: "木の性質に応じた手入れをすべきだという教え" },
+  { text: "好事魔多し", reading: "こうじまおおし", meaning: "良いことには邪魔が入りやすいということ" },
+  { text: "明日ありと思う心の仇桜", reading: "あすありとおもうこころのあだざくら", meaning: "明日があると油断していると思わぬ災いにあうたとえ" },
+  { text: "濡れぬ先の傘", reading: "ぬれぬさきのかさ", meaning: "災難が起こる前にあらかじめ用心することのたとえ" },
+  { text: "蟷螂の斧", reading: "とうろうのおの", meaning: "弱者が力量もわきまえず強者に立ち向かうことのたとえ" },
+  { text: "一富士二鷹三茄子", reading: "いちふじにたかさんなすび", meaning: "初夢に見ると縁起が良いとされるものの順序" },
+  { text: "大山鳴動して鼠一匹", reading: "たいざんめいどうしてねずみいっぴき", meaning: "前触れの騒ぎばかり大きく結果は小さいことのたとえ" },
+  { text: "九仞の功を一簣に虧く", reading: "きゅうじんのこうをいっきにかく", meaning: "長年の努力も最後のわずかな油断で無駄になることのたとえ" },
+  { text: "石が流れて木の葉が沈む", reading: "いしがながれてこのはがしずむ", meaning: "道理が逆さまで物事があべこべであることのたとえ" },
+  { text: "上手の手から水が漏る", reading: "じょうずのてからみずがもる", meaning: "名人でも時には失敗することがあるということ" },
+  { text: "千慮の一失", reading: "せんりょのいっしつ", meaning: "賢い人でも多くの考えの中には一つくらい失敗があること" },
+  { text: "寝た子を起こす", reading: "ねたこをおこす", meaning: "収まっている物事にわざわざ手を出し問題を蒸し返すこと" },
+  { text: "明日は我が身", reading: "あすはわがみ", meaning: "他人の不幸も明日は自分の身に起こるかもしれないということ" },
+  { text: "一念岩をも通す", reading: "いちねんいわをもとおす", meaning: "強い意志で行えばどんな困難も成し遂げられるということ" },
+  { text: "石に立つ矢", reading: "いしにたつや", meaning: "一心に努力すればどんな難事も成し遂げられるということ" },
+  { text: "精神一到何事か成らざらん", reading: "せいしんいっとうなにごとかならざらん", meaning: "精神を集中すれば成し遂げられないことはないという教え" },
+  { text: "雉も鳴かずば撃たれまい", reading: "きじもなかずばうたれまい", meaning: "余計なことを言わなければ災いを招かずに済むということ" },
+  { text: "花は根に鳥は古巣に", reading: "はなはねにとりはふるすに", meaning: "物事はすべて元の場所へ帰るというたとえ" },
+  { text: "京の着倒れ大阪の食い倒れ", reading: "きょうのきだおれおおさかのくいだおれ", meaning: "京都は衣服に大阪は食に贅沢するということ" },
+  { text: "商いは牛の涎", reading: "あきないはうしのよだれ", meaning: "商売は気長に辛抱強く続けることが大事だということ" },
+  { text: "芸は身を助く", reading: "げいはみをたすく", meaning: "身につけた芸や技能がいざという時に生計を助けるということ" },
+  { text: "猫の手も借りたい", reading: "ねこのてもかりたい", meaning: "非常に忙しく手が足りず誰の助けでも欲しいことのたとえ" },
+  { text: "猫に鰹節", reading: "ねこにかつおぶし", meaning: "過ちが起こりやすく油断できない状況のたとえ" },
+  { text: "泥棒を捕らえて縄を綯う", reading: "どろぼうをとらえてなわをなう", meaning: "事が起きてから慌てて準備することのたとえ" },
+  { text: "蟻の穴から堤も崩れる", reading: "ありのあなからつつみもくずれる", meaning: "わずかな油断や不注意が大事を引き起こすことのたとえ" },
+  { text: "天に唾する", reading: "てんにつばする", meaning: "人に害を与えようとして結局自分が害を受けることのたとえ" },
+  { text: "憎まれっ子世にはばかる", reading: "にくまれっこよにはばかる", meaning: "人に憎まれる者ほどかえって世間で幅を利かせるということ" },
+  { text: "女心と秋の空", reading: "おんなごころとあきのそら", meaning: "人の心は秋の空のように変わりやすいということ" },
+  { text: "花に嵐", reading: "はなにあらし", meaning: "良いことには邪魔が入りやすくこの世は無常だということ" },
+  { text: "一を聞いて十を知る", reading: "いちをきいてじゅうをしる", meaning: "物事の一部を聞いただけで全体を理解する聡明さのたとえ" },
+  { text: "秋茄子は嫁に食わすな", reading: "あきなすはよめにくわすな", meaning: "美味しい秋茄子は嫁に食べさせるなという言い伝え" },
+  { text: "縁は異なもの味なもの", reading: "えんはいなものあじなもの", meaning: "男女の縁は不思議で面白いものだということ" },
+  { text: "転んでもただでは起きない", reading: "ころんでもただではおきない", meaning: "失敗してもそこから何か利益を得ようとするたくましさのたとえ" },
+  { text: "一難去ってまた一難", reading: "いちなんさってまたいちなん", meaning: "一つの災難が去ってもまた次の災難が襲ってくること" },
+  { text: "逃がした魚は大きい", reading: "にがしたさかなはおおきい", meaning: "手に入れ損なったものは実際より価値があるように思えること" },
+  { text: "馬子にも衣装", reading: "まごにもいしょう", meaning: "つまらない者でも外面を飾れば立派に見えるということ" },
+  { text: "猫も杓子も", reading: "ねこもしゃくしも", meaning: "誰も彼も皆こぞってということ" },
+  { text: "犬に論語", reading: "いぬにろんご", meaning: "道理を説いても理解できない者には無駄なことのたとえ" },
+  { text: "豚も煽てりゃ木に登る", reading: "ぶたもおだてりゃきにのぼる", meaning: "おだてれば凡人でも力以上のことをするということ" },
+  { text: "猿に烏帽子", reading: "さるにえぼし", meaning: "外見や地位が人柄に不釣り合いなことのたとえ" },
+  { text: "鯛の尾より鰯の頭", reading: "たいのおよりいわしのあたま", meaning: "大集団の末端より小集団の頭でいる方がよいということ" },
+  { text: "河豚は食いたし命は惜しし", reading: "ふぐはくいたしいのちはおしし", meaning: "欲しいが危険を冒すのはためらわれるという板挟みの心情" },
+  { text: "泣く子と地頭には勝てぬ", reading: "なくことじとうにはかてぬ", meaning: "道理の通じない相手には従うほかないということ" },
+  { text: "長い物には巻かれろ", reading: "ながいものにはまかれろ", meaning: "力のある者には逆らわず従った方が得だということ" },
+  { text: "寄らば大樹の陰", reading: "よらばたいじゅのかげ", meaning: "頼るならば勢力のある大きなものを選ぶのがよいということ" },
+  { text: "窮鼠猫を噛む", reading: "きゅうそねこをかむ", meaning: "追い詰められた弱者が強者に必死に反撃することのたとえ" },
+  { text: "鳴く猫は鼠を捕らぬ", reading: "なくねこはねずみをとらぬ", meaning: "よくしゃべる者ほど実行が伴わないことのたとえ" },
+  { text: "負けるが勝ち", reading: "まけるがかち", meaning: "争わず一歩譲る方が結局は勝ちにつながるということ" },
+  { text: "便りのないのは良い便り", reading: "たよりのないのはよいたより", meaning: "無事なら連絡はないもので便りがないのは無事な証拠ということ" },
+  { text: "知らぬが仏", reading: "しらぬがほとけ", meaning: "知れば腹も立つが知らなければ仏のように平静でいられること" },
+  { text: "聞くは一時の恥聞かぬは一生の恥", reading: "きくはいっときのはじきかぬはいっしょうのはじ", meaning: "知らないことは尋ねる方がよく、知らぬままの方が恥だということ" },
+  { text: "帯に短し襷に長し", reading: "おびにみじかしたすきにながし", meaning: "中途半端でどちらの用にも役立たないことのたとえ" },
+  { text: "月とすっぽん", reading: "つきとすっぽん", meaning: "二つのものが比べものにならないほど違うことのたとえ" },
+  { text: "糠に釘", reading: "ぬかにくぎ", meaning: "手ごたえがなく少しも効き目のないことのたとえ" },
+  { text: "豆腐にかすがい", reading: "とうふにかすがい", meaning: "少しも手ごたえや効き目がないことのたとえ" },
+  { text: "暖簾に腕押し", reading: "のれんにうでおし", meaning: "張り合いがなく手ごたえや効き目のないことのたとえ" },
+  { text: "泥棒にも三分の理", reading: "どろぼうにもさんぶのり", meaning: "どんな悪事にもそれなりの言い分や理屈はあるものだということ" },
+  { text: "鰯の頭も信心から", reading: "いわしのあたまもしんじんから", meaning: "つまらないものでも信じる人には尊く思えるということ" },
+  { text: "鬼の目にも涙", reading: "おにのめにもなみだ", meaning: "無慈悲な人でも時には情け深い心を起こすことのたとえ" },
+  { text: "鬼の居ぬ間に洗濯", reading: "おにのいぬまにせんたく", meaning: "気兼ねする人のいない間にくつろいで息抜きすることのたとえ" },
+  { text: "仏の顔も三度", reading: "ほとけのかおもさんど", meaning: "温厚な人でも度重なる無礼にはついに怒るということ" },
+  { text: "地獄の沙汰も金次第", reading: "じごくのさたもかねしだい", meaning: "世の中は金さえあればたいてい思い通りになるということ" },
+  { text: "悪妻は百年の不作", reading: "あくさいはひゃくねんのふさく", meaning: "悪い妻をもつと一生の不幸のもとになるということ" },
+  { text: "亭主の好きな赤烏帽子", reading: "ていしゅのすきなあかえぼし", meaning: "一家の主人の好みには家族も従わざるを得ないということ" },
+  { text: "楽は苦の種苦は楽の種", reading: "らくはくのたねくはらくのたね", meaning: "楽と苦は互いに原因結果となって代わる代わる巡るということ" },
 ];
 
 const YOON_ALT = {
@@ -1298,20 +451,22 @@ function buildUnitsFromReading(reading) {
   return units;
 }
 
-function buildUnitsFromText(text) {
-  return text.split('').map((ch) => ({ display: ch, alternatives: [ch] }));
+function getProverb(index) {
+  return PROVERBS[index];
 }
 
-function getQuoteUnits(mode, index) {
-  if (mode === 'en') {
-    return { units: buildUnitsFromText(QUOTES_EN[index]), reference: null, note: null, reading: null };
-  }
-  const q = QUOTES_JA[index];
-  return { units: buildUnitsFromReading(q.reading), reference: q.text, note: q.note || null, reading: q.reading };
+function getQuoteUnits(index) {
+  const q = PROVERBS[index];
+  return {
+    units: buildUnitsFromReading(q.reading),
+    reference: q.text,
+    note: q.meaning ? '意味: ' + q.meaning : null,
+    reading: q.reading,
+  };
 }
 
-function quoteCount(mode) {
-  return mode === 'en' ? QUOTES_EN.length : QUOTES_JA.length;
+function quoteCount() {
+  return PROVERBS.length;
 }
 
 function pickNextIndex(prevIndex, total) {
@@ -1321,6 +476,72 @@ function pickNextIndex(prevIndex, total) {
     idx = Math.floor(Math.random() * total);
   }
   return idx;
+}
+
+// Types one key against a falling enemy, mutating its typing progress.
+// Returns 'wrong' | 'progress' | 'complete'. Handles ambiguous romaji such as
+// ん (["n","nn"]) the same way the main typing screen does.
+function typeCharOnEnemy(en, typed) {
+  const units = en.units;
+  let uIdx = en.unitIndex;
+  if (uIdx >= units.length) return 'complete';
+  let offset = en.typedOffset;
+  let cands = en.candidates;
+  let matching = cands.filter((c) => c[offset] === typed);
+
+  if (matching.length === 0 && en.pending) {
+    // A shorter reading already completed (e.g. "n"); this key belongs to the
+    // next unit. Commit the short reading and retry against the next unit.
+    en.unitIndex = uIdx + 1;
+    en.typedOffset = 0;
+    en.pending = null;
+    uIdx = en.unitIndex;
+    if (uIdx >= units.length) return 'complete';
+    en.candidates = units[uIdx].alternatives;
+    offset = 0;
+    cands = en.candidates;
+    matching = cands.filter((c) => c[offset] === typed);
+  }
+
+  if (matching.length === 0) return 'wrong';
+
+  en.typedRomaji += typed;
+  const newOffset = offset + 1;
+  const exact = matching.filter((c) => c.length === newOffset);
+  const longer = matching.filter((c) => c.length > newOffset);
+
+  if (exact.length > 0 && longer.length > 0) {
+    // Ambiguous (only ん: "n" done but "nn" still viable). Accept the short "n"
+    // now when there is no following key that could resolve it: at the last
+    // unit, or before a な-row sound (e.g. 三年=さんねん typed "sannen", where the
+    // next "n" belongs to ね). Otherwise keep "nn" alive as a pending commit.
+    const isLast = uIdx + 1 >= units.length;
+    const nextStartsN = !isLast && units[uIdx + 1].alternatives.every((a) => a[0] === 'n');
+    if (isLast || nextStartsN) {
+      en.unitIndex = uIdx + 1;
+      en.typedOffset = 0;
+      en.pending = null;
+      if (en.unitIndex >= units.length) return 'complete';
+      en.candidates = units[en.unitIndex].alternatives;
+      return 'progress';
+    }
+    en.pending = exact[0];
+    en.typedOffset = newOffset;
+    en.candidates = matching;
+    return 'progress';
+  } else if (exact.length > 0) {
+    en.unitIndex = uIdx + 1;
+    en.typedOffset = 0;
+    en.pending = null;
+    if (en.unitIndex >= units.length) return 'complete';
+    en.candidates = units[en.unitIndex].alternatives;
+    return 'progress';
+  } else {
+    en.pending = null;
+    en.typedOffset = newOffset;
+    en.candidates = matching;
+    return 'progress';
+  }
 }
 
 const AUTH_ERROR_MESSAGES = {
@@ -1343,8 +564,334 @@ function friendlyAuthError(err) {
   return AUTH_ERROR_MESSAGES[err.code] || err.message;
 }
 
+// ===== シューティングモード =====
+function ShootingGame({ onExit }) {
+  const [, setFrame] = useState(0);
+  const [score, setScore] = useState(0);
+  const [lives, setLives] = useState(5);
+  const [level, setLevel] = useState(1);
+  const [defeated, setDefeated] = useState(0);
+  const [status, setStatus] = useState('playing'); // 'playing' | 'over'
+  const [lastKill, setLastKill] = useState(null);
+  const [highScore, setHighScore] = useState(() => {
+    const v = Number(localStorage.getItem('shootingHighScore') || 0);
+    return isNaN(v) ? 0 : v;
+  });
+
+  const areaRef = useRef(null);
+  const enemiesRef = useRef([]);
+  const explosionsRef = useRef([]);
+  const activeIdRef = useRef(null);
+  const nextIdRef = useRef(1);
+  const statusRef = useRef('playing');
+  const scoreRef = useRef(0);
+  const livesRef = useRef(5);
+  const levelRef = useRef(1);
+  const defeatedRef = useRef(0);
+  const lastSpawnRef = useRef(0);
+  const lastFrameRef = useRef(0);
+  const shakeIdRef = useRef(null);
+
+  const forceRender = () => setFrame((f) => (f + 1) % 1000000);
+
+  const spawnInterval = () => Math.max(900, 2600 - (levelRef.current - 1) * 220);
+
+  const spawnEnemy = useCallback(() => {
+    const idx = Math.floor(Math.random() * quoteCount());
+    const q = getProverb(idx);
+    const units = buildUnitsFromReading(q.reading);
+    enemiesRef.current.push({
+      id: nextIdRef.current++,
+      text: q.text,
+      reading: q.reading,
+      meaning: q.meaning,
+      units,
+      x: 14 + Math.random() * 72, // percent of area width (card is centered on x)
+      y: -40,
+      speed: 0.34 + Math.random() * 0.16 + (levelRef.current - 1) * 0.05,
+      unitIndex: 0,
+      typedOffset: 0,
+      candidates: units[0] ? units[0].alternatives : [],
+      pending: null,
+      typedRomaji: '',
+    });
+  }, []);
+
+  const endGame = useCallback(() => {
+    statusRef.current = 'over';
+    setStatus('over');
+    const s = scoreRef.current;
+    setHighScore((h) => {
+      const nh = Math.max(h, s);
+      localStorage.setItem('shootingHighScore', String(nh));
+      return nh;
+    });
+  }, []);
+
+  // Game loop
+  useEffect(() => {
+    let raf;
+    const loop = (t) => {
+      if (!lastFrameRef.current) lastFrameRef.current = t;
+      const dt = Math.min(64, t - lastFrameRef.current);
+      lastFrameRef.current = t;
+
+      if (statusRef.current === 'playing') {
+        const area = areaRef.current;
+        const areaH = area ? area.clientHeight : 520;
+        const escapeY = areaH - 78;
+
+        if (t - lastSpawnRef.current > spawnInterval()) {
+          lastSpawnRef.current = t;
+          spawnEnemy();
+        }
+
+        const survivors = [];
+        let lostLife = 0;
+        for (const en of enemiesRef.current) {
+          en.y += en.speed * (dt / 16);
+          if (en.y >= escapeY) {
+            lostLife += 1;
+            if (activeIdRef.current === en.id) activeIdRef.current = null;
+            explosionsRef.current.push({ id: nextIdRef.current++, x: en.x, y: escapeY, kind: 'escape', born: t });
+          } else {
+            survivors.push(en);
+          }
+        }
+        enemiesRef.current = survivors;
+
+        if (lostLife > 0) {
+          const nl = Math.max(0, livesRef.current - lostLife);
+          livesRef.current = nl;
+          setLives(nl);
+          if (nl <= 0) endGame();
+        }
+
+        explosionsRef.current = explosionsRef.current.filter((ex) => t - ex.born < 600);
+      }
+
+      forceRender();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [spawnEnemy, endGame]);
+
+  const handleKey = useCallback((e) => {
+    if (statusRef.current !== 'playing') return;
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key.length !== 1) return;
+    e.preventDefault();
+
+    const key = e.key.toLowerCase();
+    const live = enemiesRef.current;
+    if (live.length === 0) return;
+
+    let target = null;
+    if (activeIdRef.current != null) {
+      target = live.find((en) => en.id === activeIdRef.current) || null;
+    }
+    if (!target) {
+      const sorted = live.slice().sort((a, b) => b.y - a.y);
+      target = sorted.find((en) => en.candidates.some((c) => c[en.typedOffset] === key)) || sorted[0];
+      activeIdRef.current = target.id;
+    }
+
+    const res = typeCharOnEnemy(target, key);
+
+    if (res === 'wrong') {
+      shakeIdRef.current = target.id;
+      setTimeout(() => { if (shakeIdRef.current === target.id) shakeIdRef.current = null; }, 180);
+    } else if (res === 'complete') {
+      enemiesRef.current = enemiesRef.current.filter((en) => en.id !== target.id);
+      activeIdRef.current = null;
+      explosionsRef.current.push({ id: nextIdRef.current++, x: target.x, y: target.y, kind: 'kill', born: performance.now() });
+      const gain = 100 + target.reading.length * 10;
+      scoreRef.current += gain;
+      setScore(scoreRef.current);
+      defeatedRef.current += 1;
+      setDefeated(defeatedRef.current);
+      const newLevel = 1 + Math.floor(defeatedRef.current / 6);
+      if (newLevel !== levelRef.current) {
+        levelRef.current = newLevel;
+        setLevel(newLevel);
+      }
+      setLastKill({ id: target.id, text: target.text, meaning: target.meaning });
+    }
+
+    forceRender();
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [handleKey]);
+
+  const restart = () => {
+    enemiesRef.current = [];
+    explosionsRef.current = [];
+    activeIdRef.current = null;
+    scoreRef.current = 0; setScore(0);
+    livesRef.current = 5; setLives(5);
+    levelRef.current = 1; setLevel(1);
+    defeatedRef.current = 0; setDefeated(0);
+    lastSpawnRef.current = 0;
+    lastFrameRef.current = 0;
+    setLastKill(null);
+    statusRef.current = 'playing';
+    setStatus('playing');
+  };
+
+  const stars = React.useMemo(() => (
+    Array.from({ length: 26 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      size: 1 + Math.random() * 2,
+      delay: Math.random() * 3,
+    }))
+  ), []);
+
+  const enemies = enemiesRef.current;
+
+  return (
+    <div className="fixed inset-0 z-40">
+      <div ref={areaRef} className="relative w-full h-full overflow-hidden game-sky">
+        {stars.map((s) => (
+          <div key={s.id} className="game-star" style={{
+            left: s.left + '%', top: s.top + '%',
+            width: s.size + 'px', height: s.size + 'px',
+            animationDelay: s.delay + 's',
+          }} />
+        ))}
+
+        {/* HUD */}
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 sm:px-6 py-3 text-[#f4ecd8]">
+          <div className="flex items-center gap-4 sm:gap-6 typewriter-font text-xs sm:text-sm">
+            <div className="flex flex-col leading-tight">
+              <span className="text-[10px] text-[#c9b98f] tracking-widest">SCORE</span>
+              <span className="text-lg sm:text-2xl">{score}</span>
+            </div>
+            <div className="flex flex-col leading-tight">
+              <span className="text-[10px] text-[#c9b98f] tracking-widest">LEVEL</span>
+              <span className="text-lg sm:text-2xl">{level}</span>
+            </div>
+            <div className="flex flex-col leading-tight">
+              <span className="text-[10px] text-[#c9b98f] tracking-widest">撃退</span>
+              <span className="text-lg sm:text-2xl">{defeated}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="text-lg sm:text-2xl tracking-tight" title="ライフ">
+              {'♥'.repeat(lives)}<span className="text-[#6b5a3f]">{'♥'.repeat(Math.max(0, 5 - lives))}</span>
+            </div>
+            <button
+              onClick={onExit}
+              className="retro-btn px-3 sm:px-4 py-1.5 bg-[#5c4a32] text-[#f4ecd8] text-xs sm:text-sm shadow hover:bg-[#493a27] active:scale-95 transition"
+            >
+              終了
+            </button>
+          </div>
+        </div>
+
+        {/* Enemies */}
+        {enemies.map((en) => {
+          const isActive = activeIdRef.current === en.id;
+          const isShaking = shakeIdRef.current === en.id;
+          const typed = en.typedRomaji;
+          const remainingCurrent = (en.candidates[0] || '').slice(en.typedOffset);
+          const future = en.units.slice(en.unitIndex + 1).map((u) => u.alternatives[0]).join('');
+          const romaji = typed + remainingCurrent + future;
+          const typedLen = typed.length;
+          return (
+            <div
+              key={en.id}
+              className={'enemy-card px-3 py-2 sm:px-4 sm:py-2.5 ' + (isActive ? 'enemy-active ' : '') + (isShaking ? 'enemy-shake' : '')}
+              style={{ left: en.x + '%', top: en.y + 'px', transform: 'translateX(-50%)', maxWidth: '80vw', width: 'max-content' }}
+            >
+              <p className="mincho-font text-center text-[#3a2f1e] text-sm sm:text-lg leading-snug whitespace-nowrap">{en.text}</p>
+              <p className="typewriter-font text-center text-[11px] sm:text-sm mt-1 tracking-wide whitespace-nowrap">
+                {romaji.split('').map((ch, i) => {
+                  let cls = 'char-pending';
+                  if (i < typedLen) cls = 'char-correct';
+                  else if (i === typedLen) cls = 'char-current';
+                  return <span key={i} className={cls}>{ch}</span>;
+                })}
+              </p>
+            </div>
+          );
+        })}
+
+        {/* Explosions */}
+        {explosionsRef.current.map((ex) => (
+          <div
+            key={ex.id}
+            className={ex.kind === 'kill' ? 'kill-burst' : 'escape-burst'}
+            style={{ left: ex.x + '%', top: ex.y + 'px', fontSize: ex.kind === 'kill' ? '34px' : '26px' }}
+          >
+            {ex.kind === 'kill' ? '✕' : '↓'}
+          </div>
+        ))}
+
+        {/* Danger line */}
+        <div className="danger-line" style={{ bottom: '74px' }} />
+        <p className="absolute left-1/2 -translate-x-1/2 text-[10px] tracking-[0.3em] text-[#e07a5f]" style={{ bottom: '80px' }}>
+          撃退ライン
+        </p>
+
+        {/* Instruction / last kill */}
+        <div className="absolute left-0 right-0 flex flex-col items-center gap-1" style={{ bottom: '20px' }}>
+          {lastKill && (
+            <div key={lastKill.id} className="kill-banner paper-card rounded-sm px-4 py-2 max-w-[92vw] text-center">
+              <span className="mincho-font text-[#3a2f1e] text-sm">{lastKill.text}</span>
+              <span className="typewriter-font text-[#8a7a56] text-[11px]">　—　{lastKill.meaning}</span>
+            </div>
+          )}
+          <p className="typewriter-font text-[11px] sm:text-xs text-[#c9b98f] tracking-wide">
+            落ちてくることわざを、ラインに届く前にローマ字でタイプして撃退せよ！
+          </p>
+        </div>
+
+        {/* Game over */}
+        {status === 'over' && (
+          <div className="absolute inset-0 bg-[#160f07]/80 flex items-center justify-center z-30 p-4">
+            <div className="paper-card rounded-sm px-10 py-10 w-full max-w-sm text-center">
+              <h2 className="typewriter-font text-2xl text-[#3a2f1e] mb-6 tracking-wide">Game Over</h2>
+              <div className="mb-4">
+                <p className="text-xs text-[#8a7a56] tracking-[0.2em] uppercase mb-1">スコア</p>
+                <p className="typewriter-font text-4xl text-[#3a2f1e]">{score}</p>
+              </div>
+              <div className="mb-6">
+                <p className="text-xs text-[#8a7a56] tracking-[0.2em] uppercase mb-1">撃退数</p>
+                <p className="typewriter-font text-2xl text-[#3a2f1e]">{defeated}</p>
+              </div>
+              <div className="mb-8 pt-4 border-t border-[#d9cba8]">
+                <p className="text-xs text-[#8a7a56] tracking-[0.2em] uppercase mb-1">ハイスコア</p>
+                <p className="typewriter-font text-2xl text-[#3a2f1e]">{highScore}</p>
+              </div>
+              <button
+                onClick={restart}
+                className="retro-btn w-full px-5 py-3 bg-[#5c4a32] text-[#f4ecd8] tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
+              >
+                もう一度
+              </button>
+              <button
+                onClick={onExit}
+                className="retro-btn w-full mt-3 px-5 py-3 bg-transparent text-[#5c4a32] border border-[#5c4a32] tracking-wider hover:bg-[#5c4a32]/10 active:scale-95 transition"
+              >
+                トップに戻る
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function App() {
-  const [screen, setScreen] = useState('top');
+  const [screen, setScreen] = useState('top'); // 'top' | 'app' | 'shooting'
   const [authLoading, setAuthLoading] = useState(true);
   const [authUser, setAuthUser] = useState(null);
   const [authError, setAuthError] = useState('');
@@ -1354,10 +901,12 @@ function App() {
   const [cumulativeCorrect, setCumulativeCorrect] = useState(0);
 
   const authUserRef = useRef(null);
+  const screenRef = useRef('top');
   const cumulativeTotalRef = useRef(0);
   const cumulativeCorrectRef = useRef(0);
 
   useEffect(() => { authUserRef.current = authUser; }, [authUser]);
+  useEffect(() => { screenRef.current = screen; }, [screen]);
 
   useEffect(() => {
     if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) {
@@ -1411,9 +960,8 @@ function App() {
     setCumulativeCorrect(0);
   };
 
-  const [mode, setMode] = useState('ja');
-  const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * quoteCount('ja')));
-  const [quoteInfo, setQuoteInfo] = useState(() => getQuoteUnits('ja', quoteIndex));
+  const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * quoteCount()));
+  const [quoteInfo, setQuoteInfo] = useState(() => getQuoteUnits(quoteIndex));
   const [completedTexts, setCompletedTexts] = useState([]);
   const [unitIndex, setUnitIndex] = useState(0);
   const [typedOffset, setTypedOffset] = useState(0);
@@ -1423,7 +971,6 @@ function App() {
   const [correctTyped, setCorrectTyped] = useState(0);
   const [showResult, setShowResult] = useState(false);
 
-  const modeRef = useRef(mode);
   const quoteIndexRef = useRef(quoteIndex);
   const quoteInfoRef = useRef(quoteInfo);
   const completedTextsRef = useRef(completedTexts);
@@ -1435,10 +982,10 @@ function App() {
 
   useEffect(() => { showResultRef.current = showResult; }, [showResult]);
 
-  const advanceToNextQuote = useCallback((forMode) => {
-    const total = quoteCount(forMode);
+  const advanceToNextQuote = useCallback(() => {
+    const total = quoteCount();
     const nextIdx = pickNextIndex(quoteIndexRef.current, total);
-    const nextInfo = getQuoteUnits(forMode, nextIdx);
+    const nextInfo = getQuoteUnits(nextIdx);
     const firstCands = nextInfo.units[0]?.alternatives || [];
 
     quoteIndexRef.current = nextIdx;
@@ -1473,7 +1020,7 @@ function App() {
     setTypedOffset(0);
 
     if (nextUnitIdx >= units.length) {
-      advanceToNextQuote(modeRef.current);
+      advanceToNextQuote();
       return null;
     }
     const nextCands = units[nextUnitIdx].alternatives;
@@ -1483,6 +1030,7 @@ function App() {
   }, [advanceToNextQuote]);
 
   const handleKeyDown = useCallback((e) => {
+    if (screenRef.current !== 'app') return;
     if (!authUserRef.current) return;
     if (showResultRef.current) return;
     if (e.isComposing || e.keyCode === 229) return;
@@ -1528,13 +1076,21 @@ function App() {
     const longerMatches = matching.filter((c) => c.length > newOffset);
 
     if (exactMatches.length > 0 && longerMatches.length > 0) {
-      // Ambiguous: a shorter alternative just completed but a longer one
-      // (e.g. "nn") is still viable. Keep both alive and remember the short one.
-      pendingCommitRef.current = exactMatches[0];
-      typedOffsetRef.current = newOffset;
-      candidatesRef.current = matching;
-      setTypedOffset(newOffset);
-      setCandidates(matching);
+      // Ambiguous (only ん: "n" done but "nn" still viable). Accept the short
+      // reading now when nothing following can resolve it: at the last unit, or
+      // before a な-row sound (e.g. 三年=さんねん typed "sannen", where the next
+      // "n" belongs to ね). Otherwise keep "nn" alive as a pending commit.
+      const isLast = uIdx + 1 >= units.length;
+      const nextStartsN = !isLast && units[uIdx + 1].alternatives.every((a) => a[0] === 'n');
+      if (isLast || nextStartsN) {
+        commitUnit(exactMatches[0], uIdx, units);
+      } else {
+        pendingCommitRef.current = exactMatches[0];
+        typedOffsetRef.current = newOffset;
+        candidatesRef.current = matching;
+        setTypedOffset(newOffset);
+        setCandidates(matching);
+      }
     } else if (exactMatches.length > 0) {
       commitUnit(exactMatches[0], uIdx, units);
     } else {
@@ -1569,23 +1125,16 @@ function App() {
     }
   };
 
-  const startFresh = useCallback((forMode) => {
+  const startFresh = useCallback(() => {
     setTotalTyped(0);
     setCorrectTyped(0);
     setShowResult(false);
     quoteIndexRef.current = -1;
-    advanceToNextQuote(forMode);
+    advanceToNextQuote();
   }, [advanceToNextQuote]);
 
   const handleRestart = () => {
-    startFresh(modeRef.current);
-  };
-
-  const handleModeToggle = () => {
-    const nextMode = modeRef.current === 'ja' ? 'en' : 'ja';
-    modeRef.current = nextMode;
-    setMode(nextMode);
-    startFresh(nextMode);
+    startFresh();
   };
 
   const accuracy = totalTyped > 0 ? ((correctTyped / totalTyped) * 100).toFixed(1) : '0.0';
@@ -1597,18 +1146,37 @@ function App() {
   const displayTarget = resolvedPrefix + preview + future;
   const currentPos = resolvedPrefix.length;
 
+  if (screen === 'shooting') {
+    return <ShootingGame onExit={() => setScreen('top')} />;
+  }
+
   if (screen === 'top') {
     return (
       <div className="flex flex-col items-center">
         <h1 className="gothic-font text-4xl sm:text-6xl font-black text-[#3a2f1e] tracking-wide">
           無限タイピング
         </h1>
-        <button
-          onClick={() => setScreen('app')}
-          className="retro-btn mt-14 px-10 py-3 bg-[#5c4a32] text-[#f4ecd8] tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
-        >
-          はじめる
-        </button>
+        <p className="typewriter-font text-xs text-[#8a7a56] mt-4 tracking-[0.3em]">ことわざタイピング</p>
+
+        <div className="flex flex-col gap-4 mt-12 w-72">
+          <button
+            onClick={() => setScreen('app')}
+            className="retro-btn px-10 py-3 bg-[#5c4a32] text-[#f4ecd8] tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
+          >
+            はじめる
+          </button>
+          <button
+            onClick={() => setScreen('shooting')}
+            className="retro-btn px-10 py-3 bg-[#8a4b2f] text-[#f4ecd8] tracking-wider shadow-md hover:bg-[#743d26] active:scale-95 transition"
+          >
+            シューティングモード
+          </button>
+        </div>
+
+        <div className="mt-8 text-center text-[11px] text-[#a89a78] typewriter-font leading-relaxed">
+          <p>はじめる … ことわざを次々にタイピング</p>
+          <p>シューティング … 落ちてくることわざを撃退</p>
+        </div>
       </div>
     );
   }
@@ -1660,6 +1228,13 @@ function App() {
             </button>
           </form>
 
+          <button
+            onClick={() => setScreen('top')}
+            className="typewriter-font text-xs text-[#8a7a56] underline mt-6 hover:text-[#5c4a32]"
+          >
+            トップに戻る
+          </button>
+
           {authError && (
             <p className="text-xs text-[#a13d2e] mt-4">{authError}</p>
           )}
@@ -1679,10 +1254,10 @@ function App() {
       </div>
 
       <button
-        onClick={handleModeToggle}
+        onClick={() => setScreen('top')}
         className="retro-btn fixed top-5 left-5 z-20 px-5 py-2 bg-[#5c4a32] text-[#f4ecd8] text-sm tracking-wider shadow-md hover:bg-[#493a27] active:scale-95 transition"
       >
-        {mode === 'ja' ? 'English' : '日本語'}
+        トップ
       </button>
 
       <button
@@ -1713,7 +1288,7 @@ function App() {
             else if (i === currentPos) cls = wrongFlag ? 'char-current-wrong' : 'char-current';
             return (
               <span key={i} className={cls}>
-                {ch === ' ' ? ' ' : ch}
+                {ch === ' ' ? ' ' : ch}
               </span>
             );
           })}
