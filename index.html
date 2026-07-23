@@ -557,6 +557,7 @@ const AUTH_ERROR_MESSAGES = {
   'auth/missing-password': 'パスワードを入力してください。',
   'auth/user-not-found': 'このメールアドレスはまだ登録されていません。「新規登録」をお試しください。',
   'auth/invalid-credential': 'メールアドレスまたはパスワードが正しくありません。',
+  'auth/missing-email': 'メールアドレスを入力してください。',
   'permission-denied': 'データへのアクセスが拒否されました。Firestoreのセキュリティルールを確認してください。',
 };
 
@@ -895,6 +896,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authUser, setAuthUser] = useState(null);
   const [authError, setAuthError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [cumulativeTotal, setCumulativeTotal] = useState(0);
@@ -940,6 +942,7 @@ function App() {
   const handleLogin = (e) => {
     e.preventDefault();
     setAuthError('');
+    setResetSent(false);
     const email = emailInput.trim();
     if (!email || !passwordInput) return;
     firebase.auth().signInWithEmailAndPassword(email, passwordInput)
@@ -948,9 +951,23 @@ function App() {
 
   const handleRegister = () => {
     setAuthError('');
+    setResetSent(false);
     const email = emailInput.trim();
     if (!email || !passwordInput) return;
     firebase.auth().createUserWithEmailAndPassword(email, passwordInput)
+      .catch((err) => setAuthError(friendlyAuthError(err)));
+  };
+
+  const handlePasswordReset = () => {
+    setAuthError('');
+    setResetSent(false);
+    const email = emailInput.trim();
+    if (!email) {
+      setAuthError('パスワードを再設定するメールアドレスを入力してください。');
+      return;
+    }
+    firebase.auth().sendPasswordResetEmail(email)
+      .then(() => setResetSent(true))
       .catch((err) => setAuthError(friendlyAuthError(err)));
   };
 
@@ -1229,11 +1246,25 @@ function App() {
           </form>
 
           <button
+            type="button"
+            onClick={handlePasswordReset}
+            className="typewriter-font text-xs text-[#8a7a56] underline mt-6 hover:text-[#5c4a32] block mx-auto"
+          >
+            パスワードをお忘れですか？
+          </button>
+
+          <button
             onClick={() => setScreen('top')}
-            className="typewriter-font text-xs text-[#8a7a56] underline mt-6 hover:text-[#5c4a32]"
+            className="typewriter-font text-xs text-[#8a7a56] underline mt-3 hover:text-[#5c4a32]"
           >
             トップに戻る
           </button>
+
+          {resetSent && (
+            <p className="text-xs text-[#2e5c3e] mt-4">
+              パスワード再設定用のメールを送信しました。メール内のリンクから新しいパスワードを設定してください。
+            </p>
+          )}
 
           {authError && (
             <p className="text-xs text-[#a13d2e] mt-4">{authError}</p>
