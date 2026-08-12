@@ -589,13 +589,14 @@ function ShootingGame({ onExit }) {
   const livesRef = useRef(5);
   const levelRef = useRef(1);
   const defeatedRef = useRef(0);
-  const lastSpawnRef = useRef(0);
+  const nextSpawnAtRef = useRef(0); // 寿司打 style: only one word on screen; this is the earliest time the next one may appear
   const lastFrameRef = useRef(0);
   const shakeIdRef = useRef(null);
 
   const forceRender = () => setFrame((f) => (f + 1) % 1000000);
 
-  const spawnInterval = () => Math.max(900, 2600 - (levelRef.current - 1) * 220);
+  // Pause between one word disappearing (typed or escaped) and the next one starting to fall.
+  const nextWordDelay = () => Math.max(280, 650 - (levelRef.current - 1) * 30);
 
   const spawnEnemy = useCallback(() => {
     const idx = Math.floor(Math.random() * quoteCount());
@@ -607,9 +608,9 @@ function ShootingGame({ onExit }) {
       reading: q.reading,
       meaning: q.meaning,
       units,
-      x: 14 + Math.random() * 72, // percent of area width (card is centered on x)
+      x: 50, // single center lane, like 寿司打
       y: -40,
-      speed: 0.34 + Math.random() * 0.16 + (levelRef.current - 1) * 0.05,
+      speed: 0.42 + Math.random() * 0.16 + (levelRef.current - 1) * 0.05,
       unitIndex: 0,
       typedOffset: 0,
       candidates: units[0] ? units[0].alternatives : [],
@@ -642,8 +643,7 @@ function ShootingGame({ onExit }) {
         const areaH = area ? area.clientHeight : 520;
         const escapeY = areaH - 78;
 
-        if (t - lastSpawnRef.current > spawnInterval()) {
-          lastSpawnRef.current = t;
+        if (enemiesRef.current.length === 0 && t >= nextSpawnAtRef.current) {
           spawnEnemy();
         }
 
@@ -655,6 +655,7 @@ function ShootingGame({ onExit }) {
             lostLife += 1;
             if (activeIdRef.current === en.id) activeIdRef.current = null;
             explosionsRef.current.push({ id: nextIdRef.current++, x: en.x, y: escapeY, kind: 'escape', born: t });
+            nextSpawnAtRef.current = t + nextWordDelay();
           } else {
             survivors.push(en);
           }
@@ -707,6 +708,7 @@ function ShootingGame({ onExit }) {
     } else if (res === 'complete') {
       enemiesRef.current = enemiesRef.current.filter((en) => en.id !== target.id);
       activeIdRef.current = null;
+      nextSpawnAtRef.current = performance.now() + nextWordDelay();
       explosionsRef.current.push({ id: nextIdRef.current++, x: target.x, y: target.y, kind: 'kill', born: performance.now() });
       const gain = 100 + target.reading.length * 10;
       scoreRef.current += gain;
@@ -737,7 +739,7 @@ function ShootingGame({ onExit }) {
     livesRef.current = 5; setLives(5);
     levelRef.current = 1; setLevel(1);
     defeatedRef.current = 0; setDefeated(0);
-    lastSpawnRef.current = 0;
+    nextSpawnAtRef.current = 0;
     lastFrameRef.current = 0;
     setLastKill(null);
     statusRef.current = 'playing';
