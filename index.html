@@ -810,11 +810,16 @@ function ShootingGame({ onExit }) {
           return (
             <div
               key={en.id}
-              className={'enemy-card px-3 py-2 sm:px-4 sm:py-2.5 ' + (isActive ? 'enemy-active ' : '') + (isShaking ? 'enemy-shake' : '')}
-              style={{ left: en.x + '%', top: en.y + 'px', transform: 'translateX(-50%)', maxWidth: '80vw', width: 'max-content' }}
+              className={'enemy-card px-5 py-4 sm:px-8 sm:py-6 ' + (isActive ? 'enemy-active ' : '') + (isShaking ? 'enemy-shake' : '')}
+              style={{ left: en.x + '%', top: en.y + 'px', transform: 'translateX(-50%)', maxWidth: '90vw' }}
             >
-              <p className="mincho-font text-center text-[#3a2f1e] text-sm sm:text-lg leading-snug whitespace-nowrap">{en.text}</p>
-              <p className="typewriter-font text-center text-[11px] sm:text-sm mt-1 tracking-wide whitespace-nowrap">
+              <p className="mincho-font text-center text-[#3a2f1e] text-2xl sm:text-4xl leading-snug break-words">
+                <ruby>
+                  {en.text}
+                  <rt className="text-xs sm:text-sm text-[#8a7a56] tracking-normal">{en.reading}</rt>
+                </ruby>
+              </p>
+              <p className="typewriter-font text-center text-base sm:text-2xl mt-3 tracking-wide break-words">
                 {romaji.split('').map((ch, i) => {
                   let cls = 'char-pending';
                   if (i < typedLen) cls = 'char-correct';
